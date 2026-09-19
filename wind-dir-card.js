@@ -66,6 +66,10 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 180, step: 1, mode: "box" } },
   },
   { name: "sector_color", selector: { text: {} } },
+  {
+    name: "sector_opacity",
+    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
+  },
   { name: "scale_color", selector: { text: {} } },
   { name: "arrow_color", selector: { text: {} } },
   { name: "speed_unit", selector: { text: {} } },
@@ -157,6 +161,7 @@ const EDITOR_LABELS = {
   wind_direction_avg_entity: "Average wind direction entity (optional)",
   sector_width: "Average direction sector width (degrees)",
   sector_color: "Sector overlay color (CSS color, optional)",
+  sector_opacity: "Sector overlay opacity (0-1)",
   scale_color: "Scale/ticks color (CSS color, optional)",
   arrow_color: "Direction arrow color (CSS color, optional)",
   speed_unit: "Speed/gust unit override (optional)",
@@ -256,6 +261,7 @@ class WindDirCard extends LitElement {
     }
     this.config = {
       sector_width: 60,
+      sector_opacity: 0.35,
       speed_precision: 1,
       gust_precision: 1,
       sector_color: "red",
@@ -411,11 +417,17 @@ class WindDirCard extends LitElement {
     const start = normalizeDeg(avgDeg - width / 2);
     const end = normalizeDeg(avgDeg + width / 2);
     const color = this.config.sector_color;
+    const opacity = Number.isFinite(Number(this.config.sector_opacity))
+      ? Number(this.config.sector_opacity)
+      : 0.35;
+    const style = [color ? `fill: ${color}` : "", `opacity: ${opacity}`]
+      .filter(Boolean)
+      .join("; ");
     return svg`
       <path
         d=${arcPath(start, end, SECTOR_INNER, SECTOR_OUTER)}
         class="sector"
-        style=${color ? `fill: ${color}` : ""}
+        style=${style}
       />
     `;
   }
@@ -473,13 +485,13 @@ class WindDirCard extends LitElement {
       `;
     }
 
+    // Filter lives on an outer group so the shadow offset stays in screen
+    // space; on the rotating group it would swing around with the needle.
     return svg`
-      <g
-        class="arrow"
-        transform="rotate(${directionDeg} ${CENTER} ${CENTER})"
-        filter=${arrowShadow ? `url(#${this._shadowId})` : ""}
-      >
-        ${shape}
+      <g filter=${arrowShadow ? `url(#${this._shadowId})` : ""}>
+        <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
+          ${shape}
+        </g>
       </g>
     `;
   }
@@ -561,7 +573,6 @@ class WindDirCard extends LitElement {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
               <circle
                 cx=${CENTER}
                 cy=${CENTER}
@@ -569,6 +580,7 @@ class WindDirCard extends LitElement {
                 class="center-circle"
                 fill="url(#${this._gradientId})"
               />
+              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
               <text
                 x=${CENTER}
                 y=${CENTER - 6}

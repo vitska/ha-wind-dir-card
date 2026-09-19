@@ -77,6 +77,7 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `wind_direction_avg_entity`   | no       | Entity with average wind direction in degrees, drives the sector overlay  |
 | `sector_width`                | no       | Width in degrees of the average-direction sector arc (default `60`)       |
 | `sector_color`                | no       | CSS color for the sector overlay (default `red`)                          |
+| `sector_opacity`              | no       | Opacity (0–1) of the average-direction sector overlay (default `0.35`)    |
 | `scale_color`                 | no       | CSS color for the tick ring, cardinal labels and north marker (default `white`) |
 | `arrow_color`                 | no       | CSS color for the direction arrow (default `white`)                       |
 | `speed_unit`                  | no       | Overrides the unit shown for speed/gust (default: entity's own unit)      |
