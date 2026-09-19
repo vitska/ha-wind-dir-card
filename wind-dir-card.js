@@ -482,17 +482,17 @@ class WindDirCard extends LitElement {
     `;
   }
 
-  _renderArrowTail(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
+  _renderArrowTail(directionDeg, arrowColor, arrowSize, arrowType) {
     if (directionDeg === null || arrowType === "needle" || arrowType === "line") {
       return svg``;
     }
     const { tailCircleR, tailY } = this._arrowGeometry(arrowSize);
     const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
+    // Deliberately no shadow filter here: at this small radius the blur
+    // overlaps the shape itself and reads as a shaded ball instead of a
+    // crisp flat dot matching the arrowhead.
     return svg`
-      <g
-        transform="rotate(${directionDeg} ${CENTER} ${CENTER})"
-        filter=${arrowShadow ? `url(#${this._shadowId})` : ""}
-      >
+      <g transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
         <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style=${fillStyle} />
       </g>
     `;
@@ -583,7 +583,7 @@ class WindDirCard extends LitElement {
                 class="center-circle"
                 fill="url(#${this._gradientId})"
               />
-              ${this._renderArrowTail(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
+              ${this._renderArrowTail(direction, arrowColor, arrowSize, arrowType)}
               <text
                 x=${CENTER}
                 y=${CENTER - 6}
