@@ -37,7 +37,11 @@ The card resizes to fill whatever tile it's given (e.g. one column of a
 | `wind_gust_entity`            | no       | Entity with wind gust speed, shown as a secondary readout                 |
 | `wind_direction_avg_entity`   | no       | Entity with average wind direction in degrees, drives the sector overlay  |
 | `sector_width`                | no       | Width in degrees of the average-direction sector arc (default `30`)       |
+| `sector_color`                | no       | CSS color for the sector overlay (default: theme accent color)            |
 | `speed_unit`                  | no       | Overrides the unit shown for speed/gust (default: entity's own unit)      |
+| `speed_precision`             | no       | Decimal places shown for the speed readout (default `0`)                  |
+| `gust_precision`              | no       | Decimal places shown for the gust readout (default `0`)                   |
+| `padding`                     | no       | Padding in px around the dial inside the tile (default `8`). `0` makes the dial fill the tile edge-to-edge |
 | `name`                        | no       | Optional card header/title                                                |
 
 ## Example
@@ -52,6 +56,10 @@ cards:
     wind_speed_entity: sensor.wind_speed
     wind_gust_entity: sensor.wind_gust
     sector_width: 30
+    sector_color: "#58a6ff"
+    speed_precision: 1
+    gust_precision: 0
+    padding: 0
   - type: custom:wind-dir-card
     name: Wind (roof station)
     wind_direction_entity: sensor.roof_wind_direction

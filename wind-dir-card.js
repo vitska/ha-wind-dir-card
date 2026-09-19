@@ -83,6 +83,9 @@ class WindDirCard extends LitElement {
     }
     this.config = {
       sector_width: 30,
+      speed_precision: 0,
+      gust_precision: 0,
+      padding: 8,
       ...config,
     };
   }
@@ -182,8 +185,13 @@ class WindDirCard extends LitElement {
     const width = Number(this.config.sector_width) || 30;
     const start = normalizeDeg(avgDeg - width / 2);
     const end = normalizeDeg(avgDeg + width / 2);
+    const color = this.config.sector_color;
     return svg`
-      <path d=${arcPath(start, end, SECTOR_INNER, SECTOR_OUTER)} class="sector" />
+      <path
+        d=${arcPath(start, end, SECTOR_INNER, SECTOR_OUTER)}
+        class="sector"
+        style=${color ? `fill: ${color}` : ""}
+      />
     `;
   }
 
@@ -223,37 +231,44 @@ class WindDirCard extends LitElement {
       : null;
     const speedUnit = this._getUnit(this.config.wind_speed_entity);
     const gustUnit = this._getUnit(this.config.wind_gust_entity, speedUnit);
+    const speedPrecision = Math.max(0, Number(this.config.speed_precision) || 0);
+    const gustPrecision = Math.max(0, Number(this.config.gust_precision) || 0);
+    const padding = Number.isFinite(Number(this.config.padding))
+      ? Number(this.config.padding)
+      : 8;
 
     const unavailable = direction === null && speed === null;
 
     return html`
       <ha-card .header=${this.config.name}>
-        <div class="dial-wrapper ${unavailable ? "unavailable" : ""}">
-          <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
-            <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
-            ${this._renderTicks()}
-            ${this._renderCardinalLabels()}
-            ${this._renderSector(avgDirection)}
-            <polygon
-              points="${CENTER - 4},${CENTER - RING_OUTER - 2} ${CENTER + 4},${CENTER - RING_OUTER - 2} ${CENTER},${CENTER - RING_OUTER + 6}"
-              class="north-marker"
-            />
-            <circle cx=${CENTER} cy=${CENTER} r=${CENTER_CIRCLE_R} class="center-circle" />
-            ${this._renderArrow(direction)}
-            <text x=${CENTER} y=${CENTER - 6} text-anchor="middle" class="speed-value">
-              ${speed !== null ? Math.round(speed) : "--"}
-            </text>
-            <text x=${CENTER} y=${CENTER + 16} text-anchor="middle" class="speed-unit">
-              ${speed !== null ? speedUnit : ""}
-            </text>
-            ${gust !== null
-              ? svg`
-                <text x=${CENTER} y=${CENTER + 34} text-anchor="middle" class="gust-value">
-                  gusts ${Math.round(gust)} ${gustUnit}
-                </text>
-              `
-              : svg``}
-          </svg>
+        <div class="card-content" style="padding: ${padding}px">
+          <div class="dial-wrapper ${unavailable ? "unavailable" : ""}">
+            <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+              <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
+              ${this._renderTicks()}
+              ${this._renderCardinalLabels()}
+              ${this._renderSector(avgDirection)}
+              <polygon
+                points="${CENTER - 4},${CENTER - RING_OUTER - 2} ${CENTER + 4},${CENTER - RING_OUTER - 2} ${CENTER},${CENTER - RING_OUTER + 6}"
+                class="north-marker"
+              />
+              <circle cx=${CENTER} cy=${CENTER} r=${CENTER_CIRCLE_R} class="center-circle" />
+              ${this._renderArrow(direction)}
+              <text x=${CENTER} y=${CENTER - 6} text-anchor="middle" class="speed-value">
+                ${speed !== null ? speed.toFixed(speedPrecision) : "--"}
+              </text>
+              <text x=${CENTER} y=${CENTER + 16} text-anchor="middle" class="speed-unit">
+                ${speed !== null ? speedUnit : ""}
+              </text>
+              ${gust !== null
+                ? svg`
+                  <text x=${CENTER} y=${CENTER + 34} text-anchor="middle" class="gust-value">
+                    gusts ${gust.toFixed(gustPrecision)} ${gustUnit}
+                  </text>
+                `
+                : svg``}
+            </svg>
+          </div>
         </div>
       </ha-card>
     `;
@@ -269,7 +284,14 @@ class WindDirCard extends LitElement {
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
-        padding: 8px;
+        padding: 0;
+      }
+      .card-content {
+        flex: 1;
+        display: flex;
+        box-sizing: border-box;
+        min-height: 0;
+        min-width: 0;
       }
       .dial-wrapper {
         position: relative;
