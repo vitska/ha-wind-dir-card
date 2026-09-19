@@ -96,6 +96,27 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
   },
   {
+    name: "show_gust_unit",
+    selector: { boolean: {} },
+  },
+  {
+    name: "arrow_size",
+    selector: { number: { min: 0.5, max: 1.5, step: 0.05, mode: "box" } },
+  },
+  {
+    name: "arrow_type",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "arrow", label: "Arrow (shaft + head + tail circle)" },
+          { value: "needle", label: "Needle (diamond)" },
+          { value: "line", label: "Line (shaft + small head)" },
+        ],
+      },
+    },
+  },
+  {
     name: "padding",
     selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
   },
@@ -119,6 +140,9 @@ const EDITOR_LABELS = {
   gust_font_size: "Gust label font size (px)",
   center_bg_color: "Center background color (CSS color, optional)",
   center_bg_opacity: "Center background opacity (0-1)",
+  show_gust_unit: "Show gust unit",
+  arrow_size: "Arrow size (scale, 1 = default)",
+  arrow_type: "Arrow type",
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
@@ -200,10 +224,18 @@ class WindDirCard extends LitElement {
       speed_font_size: 32,
       gust_font_size: 10,
       show_speed_unit: true,
+      show_gust_unit: true,
       center_bg_opacity: 0.55,
+      arrow_size: 1,
+      arrow_type: "arrow",
       padding: 8,
       ...config,
     };
+  }
+
+  constructor() {
+    super();
+    this._gradientId = `wdc-center-gradient-${Math.random().toString(36).slice(2)}`;
   }
 
   getCardSize() {
@@ -318,26 +350,58 @@ class WindDirCard extends LitElement {
     `;
   }
 
-  _renderArrow(directionDeg, arrowColor) {
+  _renderArrow(directionDeg, arrowColor, arrowSize, arrowType) {
     if (directionDeg === null) {
       return svg``;
     }
-    const tipX = CENTER;
-    const tipY = CENTER - ARROW_HEAD_R;
-    const tailX = CENTER;
-    const tailY = CENTER + ARROW_TAIL_R;
-    const headBaseY = CENTER - (ARROW_HEAD_R - ARROW_HEAD_SIZE);
+    const scale = Number.isFinite(arrowSize) && arrowSize > 0 ? arrowSize : 1;
+    const headR = Math.min(RING_OUTER - 4, ARROW_HEAD_R * scale);
+    const tailR = ARROW_TAIL_R * scale;
+    const headSize = ARROW_HEAD_SIZE * scale;
+    const tailCircleR = TAIL_CIRCLE_R * scale;
+    const shaftWidth = 3 * scale;
+    const tailStrokeWidth = 2.5 * scale;
+
+    const tipY = CENTER - headR;
+    const tailY = CENTER + tailR;
+    const headBaseY = CENTER - (headR - headSize);
     const strokeStyle = arrowColor ? `stroke: ${arrowColor}` : "";
     const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
-    return svg`
-      <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
-        <line x1=${tailX} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style=${strokeStyle} />
+
+    let shape;
+    if (arrowType === "needle") {
+      const widthAtCenter = headSize * 1.4;
+      shape = svg`
         <polygon
-          points="${CENTER},${tipY} ${CENTER - ARROW_HEAD_SIZE},${headBaseY} ${CENTER + ARROW_HEAD_SIZE},${headBaseY}"
+          points="${CENTER},${tipY} ${CENTER + widthAtCenter},${CENTER} ${CENTER},${CENTER + tailR * 0.6} ${CENTER - widthAtCenter},${CENTER}"
           class="arrow-head"
           style=${fillStyle}
         />
-        <circle cx=${tailX} cy=${tailY} r=${TAIL_CIRCLE_R} class="arrow-tail" style=${strokeStyle} />
+      `;
+    } else if (arrowType === "line") {
+      shape = svg`
+        <line x1=${CENTER} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
+        <polygon
+          points="${CENTER},${tipY} ${CENTER - headSize},${headBaseY} ${CENTER + headSize},${headBaseY}"
+          class="arrow-head"
+          style=${fillStyle}
+        />
+      `;
+    } else {
+      shape = svg`
+        <line x1=${CENTER} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
+        <polygon
+          points="${CENTER},${tipY} ${CENTER - headSize},${headBaseY} ${CENTER + headSize},${headBaseY}"
+          class="arrow-head"
+          style=${fillStyle}
+        />
+        <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style="${strokeStyle}; stroke-width: ${tailStrokeWidth}" />
+      `;
+    }
+
+    return svg`
+      <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
+        ${shape}
       </g>
     `;
   }
@@ -364,19 +428,17 @@ class WindDirCard extends LitElement {
       : 8;
     const scaleColor = this.config.scale_color || "";
     const arrowColor = this.config.arrow_color || "";
+    const arrowSize = Number(this.config.arrow_size) || 1;
+    const arrowType = this.config.arrow_type || "arrow";
     const showSpeedUnit = this.config.show_speed_unit !== false;
+    const showGustUnit = this.config.show_gust_unit !== false;
     const speedFontSize = Number(this.config.speed_font_size) || 32;
     const gustFontSize = Number(this.config.gust_font_size) || 10;
-    const centerBgColor = this.config.center_bg_color || "";
+    const centerBgColor =
+      this.config.center_bg_color || "var(--secondary-background-color, #2a2a2a)";
     const centerBgOpacity = Number.isFinite(Number(this.config.center_bg_opacity))
       ? Number(this.config.center_bg_opacity)
       : 0.55;
-    const centerCircleStyle = [
-      centerBgColor ? `fill: ${centerBgColor}` : "",
-      `opacity: ${centerBgOpacity}`,
-    ]
-      .filter(Boolean)
-      .join("; ");
 
     const unavailable = direction === null && speed === null;
 
@@ -385,6 +447,12 @@ class WindDirCard extends LitElement {
         <div class="card-content" style="padding: ${padding}px">
           <div class="dial-wrapper ${unavailable ? "unavailable" : ""}">
             <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <radialGradient id=${this._gradientId} cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color=${centerBgColor} stop-opacity=${centerBgOpacity} />
+                  <stop offset="100%" stop-color=${centerBgColor} stop-opacity="0" />
+                </radialGradient>
+              </defs>
               <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
               ${this._renderTicks(scaleColor)}
               ${this._renderCardinalLabels(scaleColor)}
@@ -394,8 +462,14 @@ class WindDirCard extends LitElement {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              <circle cx=${CENTER} cy=${CENTER} r=${CENTER_CIRCLE_R} class="center-circle" style=${centerCircleStyle} />
-              ${this._renderArrow(direction, arrowColor)}
+              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType)}
+              <circle
+                cx=${CENTER}
+                cy=${CENTER}
+                r=${CENTER_CIRCLE_R}
+                class="center-circle"
+                fill="url(#${this._gradientId})"
+              />
               <text
                 x=${CENTER}
                 y=${CENTER - 6}
@@ -421,7 +495,7 @@ class WindDirCard extends LitElement {
                     class="gust-value"
                     style="font-size: ${gustFontSize}px"
                   >
-                    gusts ${gust.toFixed(gustPrecision)} ${gustUnit}
+                    gusts ${gust.toFixed(gustPrecision)}${showGustUnit ? ` ${gustUnit}` : ""}
                   </text>
                 `
                 : svg``}
@@ -499,10 +573,6 @@ class WindDirCard extends LitElement {
       .sector {
         fill: var(--accent-color, #58a6ff);
         opacity: 0.35;
-      }
-      .center-circle {
-        fill: var(--secondary-background-color, #2a2a2a);
-        opacity: 0.55;
       }
       .arrow-shaft {
         stroke: var(--primary-text-color, #fff);
