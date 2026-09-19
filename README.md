@@ -75,35 +75,52 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `wind_speed_entity`           | yes      | Entity with momentary wind speed                                          |
 | `wind_gust_entity`            | no       | Entity with wind gust speed, shown as a secondary readout                 |
 | `wind_direction_avg_entity`   | no       | Entity with average wind direction in degrees, drives the sector overlay  |
-| `sector_width`                | no       | Width in degrees of the average-direction sector arc (default `30`)       |
-| `sector_color`                | no       | CSS color for the sector overlay (default: theme accent color)            |
-| `scale_color`                 | no       | CSS color for the tick ring, cardinal labels and north marker (default: theme text color) |
-| `arrow_color`                 | no       | CSS color for the direction arrow (default: theme text color)             |
+| `sector_width`                | no       | Width in degrees of the average-direction sector arc (default `60`)       |
+| `sector_color`                | no       | CSS color for the sector overlay (default `red`)                          |
+| `scale_color`                 | no       | CSS color for the tick ring, cardinal labels and north marker (default `white`) |
+| `arrow_color`                 | no       | CSS color for the direction arrow (default `white`)                       |
 | `speed_unit`                  | no       | Overrides the unit shown for speed/gust (default: entity's own unit)      |
-| `show_speed_unit`             | no       | Show/hide the unit text under the speed value (default `true`)            |
-| `show_gust_unit`              | no       | Show/hide the unit text next to the gust value (default `true`)           |
-| `speed_precision`             | no       | Decimal places shown for the speed readout (default `0`)                  |
-| `gust_precision`              | no       | Decimal places shown for the gust readout (default `0`)                   |
-| `speed_font_size`             | no       | Font size in px for the center speed value (default `32`)                 |
-| `gust_font_size`              | no       | Font size in px for the gust label (default `10`)                         |
-| `arrow_size`                  | no       | Scale factor for the direction arrow's length/thickness (default `1`)     |
+| `show_speed_unit`             | no       | Show/hide the unit text under the speed value (default `false`)           |
+| `show_gust_unit`              | no       | Show/hide the unit text next to the gust value (default `false`)          |
+| `speed_precision`             | no       | Decimal places shown for the speed readout (default `1`)                  |
+| `gust_precision`              | no       | Decimal places shown for the gust readout (default `1`)                   |
+| `speed_font_size`             | no       | Font size in px for the center speed value (default `40`)                 |
+| `gust_font_size`              | no       | Font size in px for the gust label (default `30`)                         |
+| `arrow_size`                  | no       | Scale factor for the direction arrow's length/thickness (default `1.25`)  |
 | `arrow_type`                  | no       | Arrow shape: `arrow` (shaft + head + tail circle, default), `needle` (diamond), or `line` (shaft + small head) |
-| `arrow_shadow`                | no       | Add a drop shadow under the direction arrow/needle for depth (default `false`) |
-| `arrow_shadow_color`          | no       | CSS color for the arrow shadow (default `#000`)                           |
-| `arrow_shadow_offset`         | no       | Vertical offset in px for the arrow shadow (default `1.5`)                |
-| `color_normal`                | no       | CSS color for speed/gust values below any warning threshold (default: theme text color) |
-| `color_warning`               | no       | CSS color for speed/gust values at/above their warning threshold (default `#ffa600`) |
-| `color_danger`                | no       | CSS color for speed/gust values at/above their danger threshold (default `#ff4136`) |
-| `speed_warning_threshold`     | no       | Speed value at/above which the speed readout switches to `color_warning`  |
-| `speed_danger_threshold`      | no       | Speed value at/above which the speed readout switches to `color_danger`   |
-| `gust_warning_threshold`      | no       | Gust value at/above which the gust readout switches to `color_warning`    |
-| `gust_danger_threshold`       | no       | Gust value at/above which the gust readout switches to `color_danger`     |
-| `center_bg_color`             | no       | CSS color for the round gradient background behind the speed value, rendered above the arrow (default: theme background color) |
-| `center_bg_opacity`           | no       | Opacity (0–1) at the center of that gradient, fading to transparent at its edge (default `0.55`) |
-| `padding`                     | no       | Padding in px around the dial inside the tile (default `8`). `0` makes the dial fill the tile edge-to-edge |
+| `arrow_shadow`                | no       | Add a drop shadow under the direction arrow/needle for depth (default `true`) |
+| `arrow_shadow_color`          | no       | CSS color for the arrow shadow (default `black`)                          |
+| `arrow_shadow_offset`         | no       | Vertical offset in px for the arrow shadow (default `2`)                  |
+| `color_normal`                | no       | CSS color for speed/gust values below any warning threshold (default `white`) |
+| `color_warning`               | no       | CSS color for speed/gust values at/above their warning threshold (default `yellow`) |
+| `color_danger`                | no       | CSS color for speed/gust values at/above their danger threshold (default `red`) |
+| `speed_warning_threshold`     | no       | Speed value at/above which the speed readout switches to `color_warning` (default `3`) |
+| `speed_danger_threshold`      | no       | Speed value at/above which the speed readout switches to `color_danger` (default `4`) |
+| `gust_warning_threshold`      | no       | Gust value at/above which the gust readout switches to `color_warning` (default `3`) |
+| `gust_danger_threshold`       | no       | Gust value at/above which the gust readout switches to `color_danger` (default `4`) |
+| `center_bg_color`             | no       | CSS color for the round gradient background behind the speed value, rendered above the arrow (default `#222222`) |
+| `center_bg_opacity`           | no       | Opacity (0–1) at the center of that gradient, fading to transparent at its edge (default `0.9`) |
+| `padding`                     | no       | Padding in px around the dial inside the tile (default `0`, fills the tile edge-to-edge) |
 | `name`                        | no       | Optional card header/title                                                |
 
 ## Example
+
+Just the entities are required — every styling option above already has a
+sensible default (red sector, white scale/arrow, black arrow shadow, dial
+filling the tile edge-to-edge, warning/danger thresholds at 3/4, etc.):
+
+```yaml
+type: horizontal-stack
+cards:
+  - type: custom:wind-dir-card
+    wind_direction_entity: sensor.roof_wt32_s1_wind_station_wind_direction
+    wind_direction_avg_entity: sensor.roof_wt32_s1_wind_station_wind_direction_avg_60s
+    wind_speed_entity: sensor.roof_wt32_s1_wind_station_wind_speed
+    wind_gust_entity: sensor.roof_wt32_s1_wind_station_wind_gust_30s
+```
+
+Override any option to taste, e.g. back to a plain white-on-dark look with
+larger padding and no arrow shadow:
 
 ```yaml
 type: horizontal-stack
@@ -114,15 +131,11 @@ cards:
     wind_direction_avg_entity: sensor.wind_direction_avg
     wind_speed_entity: sensor.wind_speed
     wind_gust_entity: sensor.wind_gust
-    sector_width: 30
     sector_color: "#58a6ff"
-    speed_precision: 1
-    gust_precision: 0
-    padding: 0
-  - type: custom:wind-dir-card
-    name: Wind (roof station)
-    wind_direction_entity: sensor.roof_wind_direction
-    wind_speed_entity: sensor.roof_wind_speed
+    padding: 8
+    arrow_shadow: false
+    show_speed_unit: true
+    show_gust_unit: true
 ```
 
 ## Notes
