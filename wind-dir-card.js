@@ -450,6 +450,7 @@ class WindDirCard extends LitElement {
               <defs>
                 <radialGradient id=${this._gradientId} cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stop-color=${centerBgColor} stop-opacity=${centerBgOpacity} />
+                  <stop offset="85%" stop-color=${centerBgColor} stop-opacity=${centerBgOpacity} />
                   <stop offset="100%" stop-color=${centerBgColor} stop-opacity="0" />
                 </radialGradient>
               </defs>
