@@ -16,7 +16,6 @@ const CENTER_CIRCLE_R = 54;
 const ARROW_HEAD_R = 80;
 const ARROW_TAIL_R = 32;
 const ARROW_HEAD_SIZE = 9;
-const TAIL_CIRCLE_R = 4.5;
 
 function toRad(deg) {
   return ((deg - 90) * Math.PI) / 180;
@@ -117,6 +116,10 @@ const EDITOR_SCHEMA = [
     },
   },
   {
+    name: "arrow_shadow",
+    selector: { boolean: {} },
+  },
+  {
     name: "padding",
     selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
   },
@@ -143,6 +146,7 @@ const EDITOR_LABELS = {
   show_gust_unit: "Show gust unit",
   arrow_size: "Arrow size (scale, 1 = default)",
   arrow_type: "Arrow type",
+  arrow_shadow: "Show arrow drop shadow",
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
@@ -228,6 +232,7 @@ class WindDirCard extends LitElement {
       center_bg_opacity: 0.55,
       arrow_size: 1,
       arrow_type: "arrow",
+      arrow_shadow: false,
       padding: 8,
       ...config,
     };
@@ -235,7 +240,9 @@ class WindDirCard extends LitElement {
 
   constructor() {
     super();
-    this._gradientId = `wdc-center-gradient-${Math.random().toString(36).slice(2)}`;
+    const uid = Math.random().toString(36).slice(2);
+    this._gradientId = `wdc-center-gradient-${uid}`;
+    this._shadowId = `wdc-arrow-shadow-${uid}`;
   }
 
   getCardSize() {
@@ -350,7 +357,7 @@ class WindDirCard extends LitElement {
     `;
   }
 
-  _renderArrow(directionDeg, arrowColor, arrowSize, arrowType) {
+  _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
     if (directionDeg === null) {
       return svg``;
     }
@@ -358,7 +365,7 @@ class WindDirCard extends LitElement {
     const headR = Math.min(RING_OUTER - 4, ARROW_HEAD_R * scale);
     const tailR = ARROW_TAIL_R * scale;
     const headSize = ARROW_HEAD_SIZE * scale;
-    const tailCircleR = TAIL_CIRCLE_R * scale;
+    const tailCircleR = headSize;
     const shaftWidth = 3 * scale;
     const tailStrokeWidth = 2.5 * scale;
 
@@ -400,7 +407,11 @@ class WindDirCard extends LitElement {
     }
 
     return svg`
-      <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
+      <g
+        class="arrow"
+        transform="rotate(${directionDeg} ${CENTER} ${CENTER})"
+        filter=${arrowShadow ? `url(#${this._shadowId})` : ""}
+      >
         ${shape}
       </g>
     `;
@@ -430,6 +441,7 @@ class WindDirCard extends LitElement {
     const arrowColor = this.config.arrow_color || "";
     const arrowSize = Number(this.config.arrow_size) || 1;
     const arrowType = this.config.arrow_type || "arrow";
+    const arrowShadow = this.config.arrow_shadow === true;
     const showSpeedUnit = this.config.show_speed_unit !== false;
     const showGustUnit = this.config.show_gust_unit !== false;
     const speedFontSize = Number(this.config.speed_font_size) || 32;
@@ -453,6 +465,9 @@ class WindDirCard extends LitElement {
                   <stop offset="85%" stop-color=${centerBgColor} stop-opacity=${centerBgOpacity} />
                   <stop offset="100%" stop-color=${centerBgColor} stop-opacity="0" />
                 </radialGradient>
+                <filter id=${this._shadowId} x="-60%" y="-60%" width="220%" height="220%">
+                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.8" flood-color="#000" flood-opacity="0.5" />
+                </filter>
               </defs>
               <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
               ${this._renderTicks(scaleColor)}
@@ -463,7 +478,7 @@ class WindDirCard extends LitElement {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType)}
+              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
               <circle
                 cx=${CENTER}
                 cy=${CENTER}
