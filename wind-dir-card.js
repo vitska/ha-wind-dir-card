@@ -67,7 +67,13 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 180, step: 1, mode: "box" } },
   },
   { name: "sector_color", selector: { text: {} } },
+  { name: "scale_color", selector: { text: {} } },
+  { name: "arrow_color", selector: { text: {} } },
   { name: "speed_unit", selector: { text: {} } },
+  {
+    name: "show_speed_unit",
+    selector: { boolean: {} },
+  },
   {
     name: "speed_precision",
     selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
@@ -75,6 +81,19 @@ const EDITOR_SCHEMA = [
   {
     name: "gust_precision",
     selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
+  },
+  {
+    name: "speed_font_size",
+    selector: { number: { min: 8, max: 60, step: 1, mode: "box" } },
+  },
+  {
+    name: "gust_font_size",
+    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
+  },
+  { name: "center_bg_color", selector: { text: {} } },
+  {
+    name: "center_bg_opacity",
+    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
   },
   {
     name: "padding",
@@ -90,9 +109,16 @@ const EDITOR_LABELS = {
   wind_direction_avg_entity: "Average wind direction entity (optional)",
   sector_width: "Average direction sector width (degrees)",
   sector_color: "Sector overlay color (CSS color, optional)",
+  scale_color: "Scale/ticks color (CSS color, optional)",
+  arrow_color: "Direction arrow color (CSS color, optional)",
   speed_unit: "Speed/gust unit override (optional)",
+  show_speed_unit: "Show speed unit",
   speed_precision: "Speed decimal places",
   gust_precision: "Gust decimal places",
+  speed_font_size: "Speed value font size (px)",
+  gust_font_size: "Gust label font size (px)",
+  center_bg_color: "Center background color (CSS color, optional)",
+  center_bg_opacity: "Center background opacity (0-1)",
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
@@ -171,6 +197,10 @@ class WindDirCard extends LitElement {
       sector_width: 30,
       speed_precision: 0,
       gust_precision: 0,
+      speed_font_size: 32,
+      gust_font_size: 10,
+      show_speed_unit: true,
+      center_bg_opacity: 0.55,
       padding: 8,
       ...config,
     };
@@ -235,8 +265,9 @@ class WindDirCard extends LitElement {
     );
   }
 
-  _renderTicks() {
+  _renderTicks(scaleColor) {
     const ticks = [];
+    const style = scaleColor ? `stroke: ${scaleColor}` : "";
     for (let deg = 0; deg < 360; deg += 5) {
       const isCardinal = deg % 90 === 0;
       const isMajor = deg % 30 === 0;
@@ -247,23 +278,25 @@ class WindDirCard extends LitElement {
         <line
           x1=${x1} y1=${y1} x2=${x2} y2=${y2}
           class=${isCardinal ? "tick tick--cardinal" : isMajor ? "tick tick--major" : "tick tick--minor"}
+          style=${style}
         />
       `);
     }
     return ticks;
   }
 
-  _renderCardinalLabels() {
+  _renderCardinalLabels(scaleColor) {
     const labels = [
       { deg: 0, text: "N" },
       { deg: 90, text: "E" },
       { deg: 180, text: "S" },
       { deg: 270, text: "W" },
     ];
+    const style = scaleColor ? `fill: ${scaleColor}` : "";
     return labels.map(({ deg, text }) => {
       const [x, y] = polar(deg, CARDINAL_LABEL_R);
       return svg`
-        <text x=${x} y=${y} class="cardinal-label" text-anchor="middle" dominant-baseline="central">
+        <text x=${x} y=${y} class="cardinal-label" text-anchor="middle" dominant-baseline="central" style=${style}>
           ${text}
         </text>
       `;
@@ -285,7 +318,7 @@ class WindDirCard extends LitElement {
     `;
   }
 
-  _renderArrow(directionDeg) {
+  _renderArrow(directionDeg, arrowColor) {
     if (directionDeg === null) {
       return svg``;
     }
@@ -294,14 +327,17 @@ class WindDirCard extends LitElement {
     const tailX = CENTER;
     const tailY = CENTER + ARROW_TAIL_R;
     const headBaseY = CENTER - (ARROW_HEAD_R - ARROW_HEAD_SIZE);
+    const strokeStyle = arrowColor ? `stroke: ${arrowColor}` : "";
+    const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
     return svg`
       <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
-        <line x1=${tailX} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" />
+        <line x1=${tailX} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style=${strokeStyle} />
         <polygon
           points="${CENTER},${tipY} ${CENTER - ARROW_HEAD_SIZE},${headBaseY} ${CENTER + ARROW_HEAD_SIZE},${headBaseY}"
           class="arrow-head"
+          style=${fillStyle}
         />
-        <circle cx=${tailX} cy=${tailY} r=${TAIL_CIRCLE_R} class="arrow-tail" />
+        <circle cx=${tailX} cy=${tailY} r=${TAIL_CIRCLE_R} class="arrow-tail" style=${strokeStyle} />
       </g>
     `;
   }
@@ -326,6 +362,21 @@ class WindDirCard extends LitElement {
     const padding = Number.isFinite(Number(this.config.padding))
       ? Number(this.config.padding)
       : 8;
+    const scaleColor = this.config.scale_color || "";
+    const arrowColor = this.config.arrow_color || "";
+    const showSpeedUnit = this.config.show_speed_unit !== false;
+    const speedFontSize = Number(this.config.speed_font_size) || 32;
+    const gustFontSize = Number(this.config.gust_font_size) || 10;
+    const centerBgColor = this.config.center_bg_color || "";
+    const centerBgOpacity = Number.isFinite(Number(this.config.center_bg_opacity))
+      ? Number(this.config.center_bg_opacity)
+      : 0.55;
+    const centerCircleStyle = [
+      centerBgColor ? `fill: ${centerBgColor}` : "",
+      `opacity: ${centerBgOpacity}`,
+    ]
+      .filter(Boolean)
+      .join("; ");
 
     const unavailable = direction === null && speed === null;
 
@@ -335,24 +386,41 @@ class WindDirCard extends LitElement {
           <div class="dial-wrapper ${unavailable ? "unavailable" : ""}">
             <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
               <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
-              ${this._renderTicks()}
-              ${this._renderCardinalLabels()}
+              ${this._renderTicks(scaleColor)}
+              ${this._renderCardinalLabels(scaleColor)}
               ${this._renderSector(avgDirection)}
               <polygon
                 points="${CENTER - 4},${CENTER - RING_OUTER - 2} ${CENTER + 4},${CENTER - RING_OUTER - 2} ${CENTER},${CENTER - RING_OUTER + 6}"
                 class="north-marker"
+                style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              <circle cx=${CENTER} cy=${CENTER} r=${CENTER_CIRCLE_R} class="center-circle" />
-              ${this._renderArrow(direction)}
-              <text x=${CENTER} y=${CENTER - 6} text-anchor="middle" class="speed-value">
+              <circle cx=${CENTER} cy=${CENTER} r=${CENTER_CIRCLE_R} class="center-circle" style=${centerCircleStyle} />
+              ${this._renderArrow(direction, arrowColor)}
+              <text
+                x=${CENTER}
+                y=${CENTER - 6}
+                text-anchor="middle"
+                class="speed-value"
+                style="font-size: ${speedFontSize}px"
+              >
                 ${speed !== null ? speed.toFixed(speedPrecision) : "--"}
               </text>
-              <text x=${CENTER} y=${CENTER + 16} text-anchor="middle" class="speed-unit">
-                ${speed !== null ? speedUnit : ""}
-              </text>
+              ${showSpeedUnit && speed !== null
+                ? svg`
+                  <text x=${CENTER} y=${CENTER + 16} text-anchor="middle" class="speed-unit">
+                    ${speedUnit}
+                  </text>
+                `
+                : svg``}
               ${gust !== null
                 ? svg`
-                  <text x=${CENTER} y=${CENTER + 34} text-anchor="middle" class="gust-value">
+                  <text
+                    x=${CENTER}
+                    y=${CENTER + 34}
+                    text-anchor="middle"
+                    class="gust-value"
+                    style="font-size: ${gustFontSize}px"
+                  >
                     gusts ${gust.toFixed(gustPrecision)} ${gustUnit}
                   </text>
                 `
@@ -434,6 +502,7 @@ class WindDirCard extends LitElement {
       }
       .center-circle {
         fill: var(--secondary-background-color, #2a2a2a);
+        opacity: 0.55;
       }
       .arrow-shaft {
         stroke: var(--primary-text-color, #fff);

@@ -70,9 +70,16 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `wind_direction_avg_entity`   | no       | Entity with average wind direction in degrees, drives the sector overlay  |
 | `sector_width`                | no       | Width in degrees of the average-direction sector arc (default `30`)       |
 | `sector_color`                | no       | CSS color for the sector overlay (default: theme accent color)            |
+| `scale_color`                 | no       | CSS color for the tick ring, cardinal labels and north marker (default: theme text color) |
+| `arrow_color`                 | no       | CSS color for the direction arrow (default: theme text color)             |
 | `speed_unit`                  | no       | Overrides the unit shown for speed/gust (default: entity's own unit)      |
+| `show_speed_unit`             | no       | Show/hide the unit text under the speed value (default `true`)            |
 | `speed_precision`             | no       | Decimal places shown for the speed readout (default `0`)                  |
 | `gust_precision`              | no       | Decimal places shown for the gust readout (default `0`)                   |
+| `speed_font_size`             | no       | Font size in px for the center speed value (default `32`)                 |
+| `gust_font_size`              | no       | Font size in px for the gust label (default `10`)                         |
+| `center_bg_color`             | no       | CSS color for the round background behind the speed value (default: theme background color) |
+| `center_bg_opacity`           | no       | Opacity (0–1) of that round background, for the semi-transparent look (default `0.55`) |
 | `padding`                     | no       | Padding in px around the dial inside the tile (default `8`). `0` makes the dial fill the tile edge-to-edge |
 | `name`                        | no       | Optional card header/title                                                |
 
