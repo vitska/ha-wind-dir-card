@@ -429,10 +429,10 @@ class WindDirCard extends LitElement {
     const tailR = ARROW_TAIL_R * scale;
     const headSize = ARROW_HEAD_SIZE * scale;
     const shaftWidth = 3 * scale;
-    const tailStrokeWidth = 2.5 * scale;
-    // headSize is the arrowhead's half-width at its base; size the tail
-    // ring so its outer edge lines up with that same width.
-    const tailCircleR = headSize - tailStrokeWidth / 2;
+    // Same radius as the arrowhead's half-width, filled solid so it reads
+    // as the same visual size (a stroked ring's shadow/blur made it look
+    // larger than the head even at an equal radius).
+    const tailCircleR = headSize;
 
     const tipY = CENTER - headR;
     const tailY = CENTER + tailR;
@@ -467,7 +467,7 @@ class WindDirCard extends LitElement {
           class="arrow-head"
           style=${fillStyle}
         />
-        <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style="${strokeStyle}; stroke-width: ${tailStrokeWidth}" />
+        <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style=${fillStyle} />
       `;
     }
 
@@ -680,9 +680,7 @@ class WindDirCard extends LitElement {
         fill: var(--primary-text-color, #fff);
       }
       .arrow-tail {
-        fill: none;
-        stroke: var(--primary-text-color, #fff);
-        stroke-width: 2.5;
+        fill: var(--primary-text-color, #fff);
       }
       .arrow {
         transition: transform 0.5s ease;
