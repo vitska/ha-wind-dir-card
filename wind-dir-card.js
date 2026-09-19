@@ -495,7 +495,7 @@ class WindDirCard extends LitElement {
                     class="gust-value"
                     style="font-size: ${gustFontSize}px"
                   >
-                    gusts ${gust.toFixed(gustPrecision)}${showGustUnit ? ` ${gustUnit}` : ""}
+                    ${gust.toFixed(gustPrecision)}${showGustUnit ? ` ${gustUnit}` : ""}
                   </text>
                 `
                 : svg``}
