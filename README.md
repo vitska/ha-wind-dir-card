@@ -16,6 +16,10 @@ The card resizes to fill whatever tile it's given (e.g. one column of a
 
 ![Wind direction card screenshot](screenshot.png)
 
+Shown here in a dashboard alongside other sensor cards:
+
+![Wind direction card in a dashboard](screenshot-dashboard.png)
+
 ## Install
 
 ### Via HACS (custom repository)
