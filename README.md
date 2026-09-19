@@ -19,6 +19,16 @@ The card resizes to fill whatever tile it's given (e.g. one column of a
 2. Add this repository's URL, category **Lovelace**.
 3. Install "Wind Direction Card", then reload your browser.
 
+### HACS update
+
+1. HACS → Frontend → **Wind Direction Card** → menu (⋮) → **Redownload**
+   (or use the update notification/badge HACS shows when a new release is
+   available).
+2. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
+   the browser picks up the new resource instead of a cached copy.
+3. If it still looks unchanged, restart Home Assistant or use Settings →
+   General → hamburger menu → **Clear cache and reload**.
+
 ### Manual
 
 1. Copy `wind-dir-card.js` into `<config>/www/wind-dir-card.js`.
@@ -27,7 +37,27 @@ The card resizes to fill whatever tile it's given (e.g. one column of a
    - Type: JavaScript Module
 3. Reload the dashboard.
 
+### Manual update
+
+If you installed manually (not via HACS), pull in new versions like this:
+
+1. Download the latest `wind-dir-card.js` from this repo (or `git pull` if you
+   cloned it) and overwrite `<config>/www/wind-dir-card.js`.
+2. Bump the cache-busting version so browsers/HA actually fetch the new file
+   instead of a cached copy: in Settings → Dashboards → Resources, edit the
+   `/local/wind-dir-card.js` resource and add/update a `?v=` query string,
+   e.g. `/local/wind-dir-card.js?v=2` (increment it on every update).
+3. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
+   the browser doesn't serve the old cached module.
+4. If the card still shows old behavior, restart Home Assistant or clear the
+   frontend cache (Settings → General → hamburger menu → **Clear cache and
+   reload**) to force a full reload of custom card resources.
+
 ## Configuration
+
+The card has a visual editor: add it via the dashboard's "Add Card" picker
+(search for "Wind Direction Card") or edit an existing card and switch to the
+"UI" tab — no YAML required, though YAML editing is still fully supported.
 
 | Option                      | Required | Description                                                              |
 | ---------------------------- | -------- | ------------------------------------------------------------------------- |

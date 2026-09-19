@@ -46,6 +46,92 @@ function normalizeDeg(deg) {
   return ((deg % 360) + 360) % 360;
 }
 
+function fireEvent(node, type, detail) {
+  node.dispatchEvent(
+    new CustomEvent(type, {
+      detail,
+      bubbles: true,
+      composed: true,
+    })
+  );
+}
+
+const EDITOR_SCHEMA = [
+  { name: "name", selector: { text: {} } },
+  { name: "wind_direction_entity", selector: { entity: {} } },
+  { name: "wind_speed_entity", selector: { entity: {} } },
+  { name: "wind_gust_entity", selector: { entity: {} } },
+  { name: "wind_direction_avg_entity", selector: { entity: {} } },
+  {
+    name: "sector_width",
+    selector: { number: { min: 0, max: 180, step: 1, mode: "box" } },
+  },
+  { name: "sector_color", selector: { text: {} } },
+  { name: "speed_unit", selector: { text: {} } },
+  {
+    name: "speed_precision",
+    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
+  },
+  {
+    name: "gust_precision",
+    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
+  },
+  {
+    name: "padding",
+    selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
+  },
+];
+
+const EDITOR_LABELS = {
+  name: "Card name",
+  wind_direction_entity: "Wind direction entity",
+  wind_speed_entity: "Wind speed entity",
+  wind_gust_entity: "Wind gust entity (optional)",
+  wind_direction_avg_entity: "Average wind direction entity (optional)",
+  sector_width: "Average direction sector width (degrees)",
+  sector_color: "Sector overlay color (CSS color, optional)",
+  speed_unit: "Speed/gust unit override (optional)",
+  speed_precision: "Speed decimal places",
+  gust_precision: "Gust decimal places",
+  padding: "Padding around dial (px, 0 = fill tile)",
+};
+
+class WindDirCardEditor extends LitElement {
+  static get properties() {
+    return {
+      hass: { attribute: false },
+      _config: { state: true },
+    };
+  }
+
+  setConfig(config) {
+    this._config = config;
+  }
+
+  _computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
+
+  _valueChanged(ev) {
+    fireEvent(this, "config-changed", { config: ev.detail.value });
+  }
+
+  render() {
+    if (!this.hass || !this._config) {
+      return html``;
+    }
+    return html`
+      <ha-form
+        .hass=${this.hass}
+        .data=${this._config}
+        .schema=${EDITOR_SCHEMA}
+        .computeLabel=${this._computeLabel}
+        @value-changed=${this._valueChanged}
+      ></ha-form>
+    `;
+  }
+}
+
+customElements.define("wind-dir-card-editor", WindDirCardEditor);
+
 class WindDirCard extends LitElement {
   static get properties() {
     return {
@@ -92,6 +178,10 @@ class WindDirCard extends LitElement {
 
   getCardSize() {
     return 4;
+  }
+
+  static getConfigElement() {
+    return document.createElement("wind-dir-card-editor");
   }
 
   firstUpdated() {
