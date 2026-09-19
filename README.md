@@ -82,6 +82,8 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `arrow_size`                  | no       | Scale factor for the direction arrow's length/thickness (default `1`)     |
 | `arrow_type`                  | no       | Arrow shape: `arrow` (shaft + head + tail circle, default), `needle` (diamond), or `line` (shaft + small head) |
 | `arrow_shadow`                | no       | Add a drop shadow under the direction arrow/needle for depth (default `false`) |
+| `arrow_shadow_color`          | no       | CSS color for the arrow shadow (default `#000`)                           |
+| `arrow_shadow_offset`         | no       | Vertical offset in px for the arrow shadow (default `1.5`)                |
 | `center_bg_color`             | no       | CSS color for the round gradient background behind the speed value, rendered above the arrow (default: theme background color) |
 | `center_bg_opacity`           | no       | Opacity (0–1) at the center of that gradient, fading to transparent at its edge (default `0.55`) |
 | `padding`                     | no       | Padding in px around the dial inside the tile (default `8`). `0` makes the dial fill the tile edge-to-edge |

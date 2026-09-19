@@ -119,6 +119,11 @@ const EDITOR_SCHEMA = [
     name: "arrow_shadow",
     selector: { boolean: {} },
   },
+  { name: "arrow_shadow_color", selector: { text: {} } },
+  {
+    name: "arrow_shadow_offset",
+    selector: { number: { min: -10, max: 10, step: 0.5, mode: "box" } },
+  },
   {
     name: "padding",
     selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
@@ -147,6 +152,8 @@ const EDITOR_LABELS = {
   arrow_size: "Arrow size (scale, 1 = default)",
   arrow_type: "Arrow type",
   arrow_shadow: "Show arrow drop shadow",
+  arrow_shadow_color: "Arrow shadow color (CSS color, optional)",
+  arrow_shadow_offset: "Arrow shadow vertical offset (px)",
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
@@ -233,6 +240,7 @@ class WindDirCard extends LitElement {
       arrow_size: 1,
       arrow_type: "arrow",
       arrow_shadow: false,
+      arrow_shadow_offset: 1.5,
       padding: 8,
       ...config,
     };
@@ -442,6 +450,10 @@ class WindDirCard extends LitElement {
     const arrowSize = Number(this.config.arrow_size) || 1;
     const arrowType = this.config.arrow_type || "arrow";
     const arrowShadow = this.config.arrow_shadow === true;
+    const arrowShadowColor = this.config.arrow_shadow_color || "#000";
+    const arrowShadowOffset = Number.isFinite(Number(this.config.arrow_shadow_offset))
+      ? Number(this.config.arrow_shadow_offset)
+      : 1.5;
     const showSpeedUnit = this.config.show_speed_unit !== false;
     const showGustUnit = this.config.show_gust_unit !== false;
     const speedFontSize = Number(this.config.speed_font_size) || 32;
@@ -466,7 +478,13 @@ class WindDirCard extends LitElement {
                   <stop offset="100%" stop-color=${centerBgColor} stop-opacity="0" />
                 </radialGradient>
                 <filter id=${this._shadowId} x="-60%" y="-60%" width="220%" height="220%">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.8" flood-color="#000" flood-opacity="0.5" />
+                  <feDropShadow
+                    dx="0"
+                    dy=${arrowShadowOffset}
+                    stdDeviation="1.8"
+                    flood-color=${arrowShadowColor}
+                    flood-opacity="0.5"
+                  />
                 </filter>
               </defs>
               <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
