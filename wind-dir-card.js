@@ -426,16 +426,18 @@ class WindDirCard extends LitElement {
     }
     const scale = Number.isFinite(arrowSize) && arrowSize > 0 ? arrowSize : 1;
     const headR = Math.min(RING_OUTER - 4, ARROW_HEAD_R * scale);
-    const tailR = ARROW_TAIL_R * scale;
     const headSize = ARROW_HEAD_SIZE * scale;
     const shaftWidth = 3 * scale;
-    // Same radius as the arrowhead's half-width, filled solid so it reads
-    // as the same visual size (a stroked ring's shadow/blur made it look
-    // larger than the head even at an equal radius).
     const tailCircleR = headSize;
+    // Symmetric needle: the tail dot's outer edge reaches the same distance
+    // from the centre as the arrowhead's tip, which also keeps it clear of
+    // the centre backdrop that is drawn over the arrow.
+    const tailR = headR - tailCircleR;
+    const shortTailR = ARROW_TAIL_R * scale;
 
     const tipY = CENTER - headR;
     const tailY = CENTER + tailR;
+    const shortTailY = CENTER + shortTailR;
     const headBaseY = CENTER - (headR - headSize);
     const strokeStyle = arrowColor ? `stroke: ${arrowColor}` : "";
     const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
@@ -445,14 +447,14 @@ class WindDirCard extends LitElement {
       const widthAtCenter = headSize * 1.4;
       shape = svg`
         <polygon
-          points="${CENTER},${tipY} ${CENTER + widthAtCenter},${CENTER} ${CENTER},${CENTER + tailR * 0.6} ${CENTER - widthAtCenter},${CENTER}"
+          points="${CENTER},${tipY} ${CENTER + widthAtCenter},${CENTER} ${CENTER},${CENTER + shortTailR * 0.6} ${CENTER - widthAtCenter},${CENTER}"
           class="arrow-head"
           style=${fillStyle}
         />
       `;
     } else if (arrowType === "line") {
       shape = svg`
-        <line x1=${CENTER} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
+        <line x1=${CENTER} y1=${shortTailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
         <polygon
           points="${CENTER},${tipY} ${CENTER - headSize},${headBaseY} ${CENTER + headSize},${headBaseY}"
           class="arrow-head"
