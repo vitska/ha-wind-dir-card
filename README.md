@@ -11,6 +11,8 @@ A Home Assistant Lovelace custom card that draws an SVG compass showing:
 The card resizes to fill whatever tile it's given (e.g. one column of a
 `horizontal-stack`) while staying square.
 
+![Wind direction card screenshot](screenshot.png)
+
 ## Install
 
 ### Via HACS (custom repository)
