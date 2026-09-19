@@ -91,6 +91,13 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `arrow_shadow`                | no       | Add a drop shadow under the direction arrow/needle for depth (default `false`) |
 | `arrow_shadow_color`          | no       | CSS color for the arrow shadow (default `#000`)                           |
 | `arrow_shadow_offset`         | no       | Vertical offset in px for the arrow shadow (default `1.5`)                |
+| `color_normal`                | no       | CSS color for speed/gust values below any warning threshold (default: theme text color) |
+| `color_warning`               | no       | CSS color for speed/gust values at/above their warning threshold (default `#ffa600`) |
+| `color_danger`                | no       | CSS color for speed/gust values at/above their danger threshold (default `#ff4136`) |
+| `speed_warning_threshold`     | no       | Speed value at/above which the speed readout switches to `color_warning`  |
+| `speed_danger_threshold`      | no       | Speed value at/above which the speed readout switches to `color_danger`   |
+| `gust_warning_threshold`      | no       | Gust value at/above which the gust readout switches to `color_warning`    |
+| `gust_danger_threshold`       | no       | Gust value at/above which the gust readout switches to `color_danger`     |
 | `center_bg_color`             | no       | CSS color for the round gradient background behind the speed value, rendered above the arrow (default: theme background color) |
 | `center_bg_opacity`           | no       | Opacity (0–1) at the center of that gradient, fading to transparent at its edge (default `0.55`) |
 | `padding`                     | no       | Padding in px around the dial inside the tile (default `8`). `0` makes the dial fill the tile edge-to-edge |

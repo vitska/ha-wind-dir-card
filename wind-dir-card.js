@@ -124,6 +124,13 @@ const EDITOR_SCHEMA = [
     name: "arrow_shadow_offset",
     selector: { number: { min: -10, max: 10, step: 0.5, mode: "box" } },
   },
+  { name: "color_normal", selector: { text: {} } },
+  { name: "color_warning", selector: { text: {} } },
+  { name: "color_danger", selector: { text: {} } },
+  { name: "speed_warning_threshold", selector: { number: { mode: "box" } } },
+  { name: "speed_danger_threshold", selector: { number: { mode: "box" } } },
+  { name: "gust_warning_threshold", selector: { number: { mode: "box" } } },
+  { name: "gust_danger_threshold", selector: { number: { mode: "box" } } },
   {
     name: "padding",
     selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
@@ -154,6 +161,13 @@ const EDITOR_LABELS = {
   arrow_shadow: "Show arrow drop shadow",
   arrow_shadow_color: "Arrow shadow color (CSS color, optional)",
   arrow_shadow_offset: "Arrow shadow vertical offset (px)",
+  color_normal: "Normal value color (CSS color, optional)",
+  color_warning: "Warning value color (default orange)",
+  color_danger: "Danger value color (default red)",
+  speed_warning_threshold: "Speed warning threshold (optional)",
+  speed_danger_threshold: "Speed danger threshold (optional)",
+  gust_warning_threshold: "Gust warning threshold (optional)",
+  gust_danger_threshold: "Gust danger threshold (optional)",
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
@@ -312,6 +326,23 @@ class WindDirCard extends LitElement {
     );
   }
 
+  _valueLevel(value, warningThreshold, dangerThreshold) {
+    if (value === null) return "normal";
+    const hasDanger =
+      dangerThreshold !== undefined && dangerThreshold !== null && dangerThreshold !== "";
+    const hasWarning =
+      warningThreshold !== undefined && warningThreshold !== null && warningThreshold !== "";
+    if (hasDanger && value >= Number(dangerThreshold)) return "danger";
+    if (hasWarning && value >= Number(warningThreshold)) return "warning";
+    return "normal";
+  }
+
+  _levelColor(level) {
+    if (level === "danger") return this.config.color_danger || "#ff4136";
+    if (level === "warning") return this.config.color_warning || "#ffa600";
+    return this.config.color_normal || "";
+  }
+
   _renderTicks(scaleColor) {
     const ticks = [];
     const style = scaleColor ? `stroke: ${scaleColor}` : "";
@@ -463,6 +494,12 @@ class WindDirCard extends LitElement {
     const centerBgOpacity = Number.isFinite(Number(this.config.center_bg_opacity))
       ? Number(this.config.center_bg_opacity)
       : 0.55;
+    const speedColor = this._levelColor(
+      this._valueLevel(speed, this.config.speed_warning_threshold, this.config.speed_danger_threshold)
+    );
+    const gustColor = this._levelColor(
+      this._valueLevel(gust, this.config.gust_warning_threshold, this.config.gust_danger_threshold)
+    );
 
     const unavailable = direction === null && speed === null;
 
@@ -488,9 +525,9 @@ class WindDirCard extends LitElement {
                 </filter>
               </defs>
               <circle cx=${CENTER} cy=${CENTER} r=${RING_OUTER} class="ring-bg" />
+              ${this._renderSector(avgDirection)}
               ${this._renderTicks(scaleColor)}
               ${this._renderCardinalLabels(scaleColor)}
-              ${this._renderSector(avgDirection)}
               <polygon
                 points="${CENTER - 4},${CENTER - RING_OUTER - 2} ${CENTER + 4},${CENTER - RING_OUTER - 2} ${CENTER},${CENTER - RING_OUTER + 6}"
                 class="north-marker"
@@ -509,7 +546,7 @@ class WindDirCard extends LitElement {
                 y=${CENTER - 6}
                 text-anchor="middle"
                 class="speed-value"
-                style="font-size: ${speedFontSize}px"
+                style="font-size: ${speedFontSize}px${speedColor ? `; fill: ${speedColor}` : ""}"
               >
                 ${speed !== null ? speed.toFixed(speedPrecision) : "--"}
               </text>
@@ -527,7 +564,7 @@ class WindDirCard extends LitElement {
                     y=${CENTER + 34}
                     text-anchor="middle"
                     class="gust-value"
-                    style="font-size: ${gustFontSize}px"
+                    style="font-size: ${gustFontSize}px${gustColor ? `; fill: ${gustColor}` : ""}"
                   >
                     ${gust.toFixed(gustPrecision)}${showGustUnit ? ` ${gustUnit}` : ""}
                   </text>
