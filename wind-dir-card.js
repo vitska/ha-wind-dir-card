@@ -420,33 +420,23 @@ class WindDirCard extends LitElement {
     `;
   }
 
-  _arrowGeometry(arrowSize) {
+  _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
+    if (directionDeg === null) {
+      return svg``;
+    }
     const scale = Number.isFinite(arrowSize) && arrowSize > 0 ? arrowSize : 1;
     const headR = Math.min(RING_OUTER - 4, ARROW_HEAD_R * scale);
     const tailR = ARROW_TAIL_R * scale;
     const headSize = ARROW_HEAD_SIZE * scale;
     const shaftWidth = 3 * scale;
     // Same radius as the arrowhead's half-width, filled solid so it reads
-    // as the same visual size.
+    // as the same visual size (a stroked ring's shadow/blur made it look
+    // larger than the head even at an equal radius).
     const tailCircleR = headSize;
-    return {
-      headR,
-      tailR,
-      headSize,
-      shaftWidth,
-      tailCircleR,
-      tipY: CENTER - headR,
-      tailY: CENTER + tailR,
-      headBaseY: CENTER - (headR - headSize),
-    };
-  }
 
-  _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
-    if (directionDeg === null) {
-      return svg``;
-    }
-    const { headR, tailR, headSize, shaftWidth, tipY, tailY, headBaseY } =
-      this._arrowGeometry(arrowSize);
+    const tipY = CENTER - headR;
+    const tailY = CENTER + tailR;
+    const headBaseY = CENTER - (headR - headSize);
     const strokeStyle = arrowColor ? `stroke: ${arrowColor}` : "";
     const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
 
@@ -460,6 +450,15 @@ class WindDirCard extends LitElement {
           style=${fillStyle}
         />
       `;
+    } else if (arrowType === "line") {
+      shape = svg`
+        <line x1=${CENTER} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
+        <polygon
+          points="${CENTER},${tipY} ${CENTER - headSize},${headBaseY} ${CENTER + headSize},${headBaseY}"
+          class="arrow-head"
+          style=${fillStyle}
+        />
+      `;
     } else {
       shape = svg`
         <line x1=${CENTER} y1=${tailY} x2=${CENTER} y2=${headBaseY} class="arrow-shaft" style="${strokeStyle}; stroke-width: ${shaftWidth}" />
@@ -468,6 +467,7 @@ class WindDirCard extends LitElement {
           class="arrow-head"
           style=${fillStyle}
         />
+        <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style=${fillStyle} />
       `;
     }
 
@@ -478,22 +478,6 @@ class WindDirCard extends LitElement {
         filter=${arrowShadow ? `url(#${this._shadowId})` : ""}
       >
         ${shape}
-      </g>
-    `;
-  }
-
-  _renderArrowTail(directionDeg, arrowColor, arrowSize, arrowType) {
-    if (directionDeg === null || arrowType === "needle" || arrowType === "line") {
-      return svg``;
-    }
-    const { tailCircleR, tailY } = this._arrowGeometry(arrowSize);
-    const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
-    // Deliberately no shadow filter here: at this small radius the blur
-    // overlaps the shape itself and reads as a shaded ball instead of a
-    // crisp flat dot matching the arrowhead.
-    return svg`
-      <g transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
-        <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style=${fillStyle} />
       </g>
     `;
   }
@@ -583,7 +567,6 @@ class WindDirCard extends LitElement {
                 class="center-circle"
                 fill="url(#${this._gradientId})"
               />
-              ${this._renderArrowTail(direction, arrowColor, arrowSize, arrowType)}
               <text
                 x=${CENTER}
                 y=${CENTER - 6}
