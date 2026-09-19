@@ -1,5 +1,8 @@
 # Wind Direction Card
 
+[![GitHub release](https://img.shields.io/github/v/release/vitska/ha-wind-dir-card)](https://github.com/vitska/ha-wind-dir-card/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+
 A Home Assistant Lovelace custom card that draws an SVG compass showing:
 
 - momentary wind direction (arrow)
