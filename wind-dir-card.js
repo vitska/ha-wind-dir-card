@@ -127,10 +127,22 @@ const EDITOR_SCHEMA = [
   { name: "color_normal", selector: { text: {} } },
   { name: "color_warning", selector: { text: {} } },
   { name: "color_danger", selector: { text: {} } },
-  { name: "speed_warning_threshold", selector: { number: { mode: "box" } } },
-  { name: "speed_danger_threshold", selector: { number: { mode: "box" } } },
-  { name: "gust_warning_threshold", selector: { number: { mode: "box" } } },
-  { name: "gust_danger_threshold", selector: { number: { mode: "box" } } },
+  {
+    name: "speed_warning_threshold",
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
+  },
+  {
+    name: "speed_danger_threshold",
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
+  },
+  {
+    name: "gust_warning_threshold",
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
+  },
+  {
+    name: "gust_danger_threshold",
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
+  },
   {
     name: "padding",
     selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
@@ -175,12 +187,12 @@ class WindDirCardEditor extends LitElement {
   static get properties() {
     return {
       hass: { attribute: false },
-      _config: { state: true },
+      _config: { attribute: false },
     };
   }
 
   setConfig(config) {
-    this._config = config;
+    this._config = { ...config };
   }
 
   _computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
