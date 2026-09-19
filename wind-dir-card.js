@@ -428,9 +428,11 @@ class WindDirCard extends LitElement {
     const headR = Math.min(RING_OUTER - 4, ARROW_HEAD_R * scale);
     const tailR = ARROW_TAIL_R * scale;
     const headSize = ARROW_HEAD_SIZE * scale;
-    const tailCircleR = headSize;
     const shaftWidth = 3 * scale;
     const tailStrokeWidth = 2.5 * scale;
+    // headSize is the arrowhead's half-width at its base; size the tail
+    // ring so its outer edge lines up with that same width.
+    const tailCircleR = headSize - tailStrokeWidth / 2;
 
     const tipY = CENTER - headR;
     const tailY = CENTER + tailR;
