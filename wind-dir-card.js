@@ -573,6 +573,7 @@ class WindDirCard extends LitElement {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
+              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
               <circle
                 cx=${CENTER}
                 cy=${CENTER}
@@ -580,7 +581,6 @@ class WindDirCard extends LitElement {
                 class="center-circle"
                 fill="url(#${this._gradientId})"
               />
-              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
               <text
                 x=${CENTER}
                 y=${CENTER - 6}
