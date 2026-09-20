@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.4.0";
+var VERSION = "3.5.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1351,6 +1351,20 @@ var EDITOR_SCHEMA3 = [
   },
   { name: "value_color", selector: { text: {} } },
   {
+    name: "aside_font_size",
+    selector: { "number": { "min": 6, "max": 48, "step": 1, "mode": "box" } }
+  },
+  { name: "show_leaders", selector: { boolean: {} } },
+  { name: "leader_color", selector: { text: {} } },
+  {
+    name: "leader_width",
+    selector: { "number": { "min": 0.5, "max": 6, "step": 0.5, "mode": "box" } }
+  },
+  {
+    name: "leader_length",
+    selector: { "number": { "min": 0, "max": 80, "step": 1, "mode": "box" } }
+  },
+  {
     name: "min_label_percent",
     selector: { number: { min: 0, max: 50, step: 1, mode: "box" } }
   },
@@ -1414,6 +1428,11 @@ var EDITOR_LABELS3 = {
   segment_label: "What the segment labels show",
   value_font_size: "Segment label font size (px)",
   value_color: "Segment label color",
+  aside_font_size: "Font size of the labels beside a vertical bar (px)",
+  show_leaders: "Draw leader lines from a vertical bar to its labels",
+  leader_color: "Leader line color",
+  leader_width: "Leader line width (px)",
+  leader_length: "Distance from the bar to its labels (px)",
   min_label_percent: "Hide segment labels below this % of the bar",
   show_total: "Show the total",
   total_label: "Total label",
@@ -1476,6 +1495,10 @@ var DistributionExCard = class extends LitElement2 {
       show_values: false,
       show_percent: false,
       value_font_size: 11,
+      aside_font_size: 16,
+      show_leaders: true,
+      leader_width: 1,
+      leader_length: 18,
       min_label_percent: 8,
       show_total: false,
       total_label: "Total",
@@ -1590,13 +1613,56 @@ var DistributionExCard = class extends LitElement2 {
       thickness / 2
     );
     const gap = Number.isFinite(Number(config.bar_gap)) ? Number(config.bar_gap) : 2;
-    const length = vertical ? this._barHeight : this._width;
-    const width = vertical ? this._width : length;
-    const height = vertical ? length : thickness;
-    const labelX = thickness + 10;
     const visible = items.filter((i) => !i.hidden && i.magnitude > 0);
+    const mode = this._labelMode();
     const valueFontSize = Number(config.value_font_size) || 11;
     const minLabel = Number.isFinite(Number(config.min_label_percent)) ? Number(config.min_label_percent) : 8;
+    if (!vertical) {
+      return this._renderHorizontal({
+        length: this._width,
+        thickness,
+        radius,
+        gap,
+        visible,
+        total,
+        mode,
+        valueFontSize,
+        minLabel
+      });
+    }
+    return this._renderVertical({
+      thickness,
+      radius,
+      gap,
+      visible,
+      items,
+      total,
+      mode,
+      valueFontSize,
+      minLabel
+    });
+  }
+  // The bar hugs the left edge; each slice is called out to a label column on
+  // the right by a bracket, and the total hangs off the bottom of the bar on
+  // its own leader so it reads as the sum of what sits above it.
+  _renderVertical({ thickness, radius, gap, visible, items, total, mode, valueFontSize, minLabel }) {
+    const config = this.config;
+    const asideFontSize = Number(config.aside_font_size) || 16;
+    const showLeaders = config.show_leaders !== false;
+    const leaderLength = Number.isFinite(Number(config.leader_length)) ? Number(config.leader_length) : 18;
+    const leaderColor = config.leader_color || "var(--divider-color, rgba(127,127,127,0.55))";
+    const leaderWidth = Number(config.leader_width) || 1;
+    const bracketX1 = thickness + 4;
+    const bracketX2 = bracketX1 + (showLeaders ? 6 : 0);
+    const labelX = bracketX2 + (showLeaders ? leaderLength : 8) + 4;
+    const width = this._width;
+    const height = this._barHeight;
+    const totalRow = config.show_total ? asideFontSize * 1.9 : 0;
+    const length = Math.max(10, height - totalRow);
+    const totalY = length + totalRow / 2;
+    const hasAside = mode !== "percent";
+    const hasInside = mode !== "value";
+    const showName = config.show_segment_names !== false;
     let offset = 0;
     const segments = visible.map((item) => {
       const share = total > 0 ? item.magnitude / total : 0;
@@ -1604,23 +1670,13 @@ var DistributionExCard = class extends LitElement2 {
       const start = offset;
       offset += size;
       const drawn = Math.max(0, size - (visible.length > 1 ? gap : 0));
-      const percent = share * 100;
-      const mode = this._labelMode();
-      const valueText = this._formatValue(item);
-      const percentText = `${percent.toFixed(0)}%`;
-      const label = mode === "percent" ? percentText : mode === "both" ? `${valueText} \xB7 ${percentText}` : valueText;
       return {
         item,
         start,
-        size,
         drawn,
-        percent,
-        label,
-        valueText,
-        percentText,
-        mode,
-        valueFontSize,
-        minLabel
+        percent: share * 100,
+        valueText: this._formatValue(item),
+        percentText: `${(share * 100).toFixed(0)}%`
       };
     });
     return svg`
@@ -1633,75 +1689,140 @@ var DistributionExCard = class extends LitElement2 {
       >
         <defs>
           <clipPath id=${this._clipId}>
-            <rect
-              x="0" y="0"
-              width=${vertical ? thickness : width}
-              height=${height}
-              rx=${radius} ry=${radius}
-            />
+            <rect x="0" y="0" width=${thickness} height=${length} rx=${radius} ry=${radius} />
           </clipPath>
         </defs>
         <g clip-path="url(#${this._clipId})">
           <rect
-            x="0" y="0" width=${vertical ? thickness : width} height=${height}
+            x="0" y="0" width=${thickness} height=${length}
             fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
           />
-          ${segments.map(
-      ({ item, start, drawn }) => vertical ? svg`
-                <rect
-                  class="segment"
-                  x="0" y=${start} width=${thickness} height=${drawn}
-                  fill=${item.color}
-                  @click=${() => this._moreInfo(item.entity)}
-                ><title>${item.name}: ${this._formatValue(item)}</title></rect>
-              ` : svg`
-                <rect
-                  class="segment"
-                  x=${start} y="0" width=${drawn} height=${height}
-                  fill=${item.color}
-                  @click=${() => this._moreInfo(item.entity)}
-                ><title>${item.name}: ${this._formatValue(item)}</title></rect>
-              `
-    )}
+          ${segments.map(({ item, start, drawn }) => svg`
+            <rect
+              class="segment"
+              x="0" y=${start} width=${thickness} height=${drawn}
+              fill=${item.color}
+              @click=${() => this._moreInfo(item.entity)}
+            ><title>${item.name}: ${this._formatValue(item)}</title></rect>
+          `)}
         </g>
-        ${config.show_values === false ? svg`` : segments.map(({ item, start, drawn, percent, label, valueText, percentText, mode }) => {
+        ${config.show_values === false ? svg`` : segments.map(({ item, start, drawn, percent, valueText, percentText }) => {
       if (percent < minLabel || drawn <= 0) return svg``;
-      if (!vertical) {
-        return svg`
-                  <text
-                    class="segment-label"
-                    x=${start + drawn / 2}
-                    y=${height / 2}
-                    text-anchor="middle"
-                    dominant-baseline="central"
-                    style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
-                  >${label}</text>
-                `;
-      }
-      const showName = config.show_segment_names !== false;
+      const mid = start + drawn / 2;
       return svg`
-                <text
-                  class="segment-aside"
-                  x=${labelX}
-                  y=${start + drawn / 2}
-                  text-anchor="start"
-                  dominant-baseline="central"
-                  style="font-size: ${valueFontSize}px"
-                  @click=${() => this._moreInfo(item.entity)}
-                >
-                  ${showName ? svg`<tspan class="aside-name">${item.name}</tspan>` : svg``}
-                  ${mode === "percent" ? svg`` : svg`<tspan
+                ${hasInside && drawn >= valueFontSize * 1.3 ? svg`
+                    <text
+                      class="segment-label"
+                      x=${thickness / 2} y=${mid}
+                      text-anchor="middle" dominant-baseline="central"
+                      style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
+                    >${percentText}</text>
+                  ` : svg``}
+                ${hasAside && showLeaders ? svg`
+                    <path
+                      class="leader"
+                      d="M ${bracketX1} ${start} L ${bracketX2} ${start} L ${bracketX2} ${start + drawn} L ${bracketX1} ${start + drawn} M ${bracketX2} ${mid} L ${labelX - 4} ${mid}"
+                      fill="none"
+                      stroke=${leaderColor}
+                      stroke-width=${leaderWidth}
+                    />
+                  ` : svg``}
+                ${hasAside ? svg`
+                    <text
+                      class="segment-aside"
+                      x=${labelX} y=${mid}
+                      text-anchor="start" dominant-baseline="central"
+                      style="font-size: ${asideFontSize}px"
+                      @click=${() => this._moreInfo(item.entity)}
+                    >
+                      ${showName ? svg`<tspan class="aside-name">${item.name}</tspan>` : svg``}
+                      <tspan
                         class="aside-value"
                         dx=${showName ? 6 : 0}
                         style=${config.value_color ? `fill: ${config.value_color}` : ""}
-                      >${valueText}</tspan>`}
-                  ${mode === "value" ? svg`` : svg`<tspan
-                        class="aside-percent"
-                        dx=${mode === "percent" && !showName ? 0 : 6}
-                      >${percentText}</tspan>`}
-                </text>
+                      >${valueText}</tspan>
+                    </text>
+                  ` : svg``}
               `;
     })}
+        ${config.show_total ? svg`
+            ${showLeaders ? svg`
+                <path
+                  class="leader"
+                  d="M ${bracketX2} ${length} L ${bracketX2} ${totalY} L ${labelX - 4} ${totalY}"
+                  fill="none"
+                  stroke=${leaderColor}
+                  stroke-width=${leaderWidth}
+                />
+              ` : svg``}
+            <text
+              class="segment-aside total-aside"
+              x=${labelX} y=${totalY}
+              text-anchor="start" dominant-baseline="central"
+              style="font-size: ${asideFontSize}px${config.total_color ? `; fill: ${config.total_color}` : ""}"
+            >
+              ${config.total_label ? svg`<tspan class="aside-name">${config.total_label}</tspan>` : svg``}
+              <tspan class="aside-value" dx=${config.total_label ? 6 : 0}
+              >${this._formatTotal(items, total)}</tspan>
+            </text>
+          ` : svg``}
+      </svg>
+    `;
+  }
+  _renderHorizontal({ length, thickness, radius, gap, visible, total, mode, valueFontSize, minLabel }) {
+    const config = this.config;
+    const width = length;
+    const height = thickness;
+    let offset = 0;
+    const segments = visible.map((item) => {
+      const share = total > 0 ? item.magnitude / total : 0;
+      const size = share * length;
+      const start = offset;
+      offset += size;
+      const drawn = Math.max(0, size - (visible.length > 1 ? gap : 0));
+      const percent = share * 100;
+      const valueText = this._formatValue(item);
+      const percentText = `${percent.toFixed(0)}%`;
+      const label = mode === "percent" ? percentText : mode === "both" ? `${valueText} \xB7 ${percentText}` : valueText;
+      return { item, start, drawn, percent, label };
+    });
+    return svg`
+      <svg
+        viewBox="0 0 ${width} ${height}"
+        width=${width}
+        height=${height}
+        role="img"
+        aria-label=${config.title || "Distribution"}
+      >
+        <defs>
+          <clipPath id=${this._clipId}>
+            <rect x="0" y="0" width=${width} height=${height} rx=${radius} ry=${radius} />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#${this._clipId})">
+          <rect
+            x="0" y="0" width=${width} height=${height}
+            fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
+          />
+          ${segments.map(({ item, start, drawn }) => svg`
+            <rect
+              class="segment"
+              x=${start} y="0" width=${drawn} height=${height}
+              fill=${item.color}
+              @click=${() => this._moreInfo(item.entity)}
+            ><title>${item.name}: ${this._formatValue(item)}</title></rect>
+          `)}
+        </g>
+        ${config.show_values === false ? svg`` : segments.map(
+      ({ start, drawn, percent, label }) => percent < minLabel || drawn <= 0 ? svg`` : svg`
+                  <text
+                    class="segment-label"
+                    x=${start + drawn / 2} y=${height / 2}
+                    text-anchor="middle" dominant-baseline="central"
+                    style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
+                  >${label}</text>
+                `
+    )}
       </svg>
     `;
   }
@@ -1760,7 +1881,7 @@ var DistributionExCard = class extends LitElement2 {
     )}
                 </div>
               `}
-          ${config.show_total && config.total_position !== "top" ? html2`<div
+          ${config.show_total && config.total_position !== "top" && config.orientation !== "vertical" ? html2`<div
                 class="total total-bottom"
                 style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
               >

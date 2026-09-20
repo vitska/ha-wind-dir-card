@@ -466,6 +466,11 @@ palette wholesale.
 | `segment_label` | no | What the segment labels show: `value` (default), `percent`, or `both` |
 | `value_font_size` | no | Segment label size in px (default `11`) |
 | `value_color` | no | Segment label color (default white) |
+| `aside_font_size` | no | Font size of the labels beside a vertical bar (default `16`) |
+| `show_leaders` | no | Draw leader lines from a vertical bar to its labels (default `true`) |
+| `leader_color` | no | Leader line color |
+| `leader_width` | no | Leader line width in px (default `1`) |
+| `leader_length` | no | Distance from the bar to its label column in px (default `18`) |
 | `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
 | `show_total` | no | Show the sum of the visible slices (default `false`) |
 | `total_label` | no | Text before the total (default `Total`; set `""` for none) |
@@ -498,19 +503,33 @@ Per entity:
 
 ### Vertical bars
 
-With `orientation: vertical` the labels move **beside** the bar, each one lined
-up with the slice it describes, instead of being crammed inside a narrow
-column. Each shows the entity's name and value — drop the name with
-`show_segment_names: false`, or switch to percentages with `show_percent: true`.
+`orientation: vertical` switches to a callout layout: the bar hugs the left,
+each slice's **percentage sits inside it**, and its **value is pulled out to a
+label column on the right** on a bracket-shaped leader line. The total hangs off
+the foot of the bar on its own leader, lined up with the values above it, so it
+reads as their sum.
+
+```text
+ +------+
+ |      |--- 3.5 kWh
+ | 80%  |
+ |      |
+ +------+
+ | 20%  |--- 0.7 kWh
+ +------+
+    |
+    +------- 4.2 kWh
+```
 
 ```yaml
 type: custom:distribution-ex-card
-title: Battery
 orientation: vertical
 card_height: 220
 show_values: true
 segment_label: both
 show_total: true
+total_label: ""
+show_segment_names: false
 entities:
   - entity: sensor.deye10k_day_battery_charge
     name: BT-C
@@ -518,10 +537,23 @@ entities:
     name: BT-D
 ```
 
-Because the labels sit on the card surface rather than on a coloured fill, they
-use normal text colours, with the slice beside them carrying the identity.
-`min_label_percent` still applies, so a sliver won't get a label crashing into
-its neighbour.
+`segment_label` decides what goes where:
+
+| Value | Inside the slice | Beside the bar |
+| ----- | ---------------- | -------------- |
+| `value` (default) | — | the value |
+| `percent` | the percentage | — |
+| `both` | the percentage | the value |
+
+Add `show_segment_names: true` to prefix each callout with the entity's name,
+and `total_label` to prefix the total. Leader lines are on by default —
+`show_leaders: false` drops them, `leader_length` moves the label column, and
+`leader_color` / `leader_width` restyle them. `aside_font_size` sizes the
+callout text independently of the percentages inside the bar, which use
+`value_font_size`.
+
+A slice too short for its percentage to fit simply doesn't get one, and
+`min_label_percent` suppresses both the percentage and the callout for slivers.
 
 ### Examples
 
@@ -584,12 +616,13 @@ legend_font_size: 14
 - The total reflects what's currently visible, so hiding a slice in the legend
   updates it. It uses the card's `decimals` and the first entity's unit unless
   `unit` overrides it.
-- It sits at the bottom behind a rule, with its label, so it reads as a sum
-  rather than as one more number. `total_position: top` puts it beside the
-  title instead.
-- `segment_label: both` renders the value and percentage together — as
-  `3.5 kWh · 83%` inside a horizontal slice, and as separate value/percentage
-  labels beside a vertical one, the percentage in a quieter ink.
+- On a horizontal bar it sits at the bottom behind a rule, with its label, so
+  it reads as a sum rather than as one more number; `total_position: top`
+  puts it beside the title instead. On a vertical bar it is drawn in the
+  diagram itself, on a leader from the foot of the bar.
+- `segment_label: both` renders both figures — as `3.5 kWh · 83%` inside a
+  horizontal slice, and on a vertical bar as the percentage inside the slice
+  with the value called out beside it.
 
 ## Repo layout
 
