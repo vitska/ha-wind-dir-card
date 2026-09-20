@@ -32,4 +32,8 @@ for entry in "${ENTRIES[@]}"; do
     --outfile="${entry}.js"
 done
 
+VERSION=$(grep -o 'VERSION = "[^"]*"' src/shared.js | head -1 | cut -d'"' -f2)
 echo "Built: ${ENTRIES[*]/%/.js}"
+# Printed loudly because the console banner is how an install is identified;
+# shipping a stale VERSION makes that banner lie about which build is running.
+echo "Embedded VERSION: ${VERSION}  <- must match the tag you are about to cut"

@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.1.0";
+var VERSION = "3.3.1";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
