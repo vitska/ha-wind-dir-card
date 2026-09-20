@@ -419,7 +419,8 @@ proportional to its value, with a **legend** beneath. Nothing here is specific
 to energy — any comparable numbers work.
 
 Select a segment to open that entity's more-info dialog; select a legend item to
-hide or show its slice, and the rest rescale to fill the bar.
+hide or show its slice, and the rest rescale to fill the bar. `show_total: true`
+adds the sum of the visible slices beside the title.
 
 ```yaml
 type: custom:distribution-ex-card
@@ -465,6 +466,11 @@ palette wholesale.
 | `value_font_size` | no | Segment label size in px (default `11`) |
 | `value_color` | no | Segment label color (default white) |
 | `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
+| `show_total` | no | Show the sum of the visible slices (default `false`) |
+| `total_label` | no | Text before the total (default `Total`; set `""` for none) |
+| `total_font_size` | no | Total font size in px (default `16`) |
+| `total_color` | no | Total color |
+| `show_segment_names` | no | Include the name in the labels beside a vertical bar (default `true`) |
 | `show_legend` | no | Show the legend (default `true`) |
 | `show_legend_values` | no | Show values in the legend (default `true`) |
 | `show_legend_percent` | no | Show percentages in the legend (default `false`) |
@@ -487,6 +493,32 @@ Per entity:
 | `decimals` | Decimal places for this entity |
 | `display_abs` | Show the magnitude, hiding the sign (default `true`) |
 | `hidden` | Start with this slice hidden |
+
+### Vertical bars
+
+With `orientation: vertical` the labels move **beside** the bar, each one lined
+up with the slice it describes, instead of being crammed inside a narrow
+column. Each shows the entity's name and value — drop the name with
+`show_segment_names: false`, or switch to percentages with `show_percent: true`.
+
+```yaml
+type: custom:distribution-ex-card
+title: Battery
+orientation: vertical
+card_height: 220
+show_values: true
+show_total: true
+entities:
+  - entity: sensor.deye10k_day_battery_charge
+    name: BT-C
+  - entity: sensor.deye10k_day_battery_discharge
+    name: BT-D
+```
+
+Because the labels sit on the card surface rather than on a coloured fill, they
+use normal text colours, with the slice beside them carrying the identity.
+`min_label_percent` still applies, so a sliver won't get a label crashing into
+its neighbour.
 
 ### Examples
 
@@ -546,6 +578,9 @@ legend_font_size: 14
   legend, rather than breaking the proportions.
 - Hovering a segment shows its name and value; the legend is always available as
   the readable fallback, which matters for the lighter palette slots.
+- The total reflects what's currently visible, so hiding a slice in the legend
+  updates it. It uses the card's `decimals` and the first entity's unit unless
+  `unit` overrides it.
 
 ## Repo layout
 

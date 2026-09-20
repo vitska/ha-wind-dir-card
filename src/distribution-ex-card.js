@@ -13,6 +13,7 @@ import {
 } from "./shared.js";
 
 const DEFAULT_WIDTH = 320;
+const DEFAULT_BAR_LENGTH = 180;
 
 // Validated categorical palette, fixed order, never cycled. Light and dark are
 // the same eight hues stepped for their own surface, not an automatic flip.
@@ -70,6 +71,14 @@ const EDITOR_SCHEMA = [
     name: "min_label_percent",
     selector: { number: { min: 0, max: 50, step: 1, mode: "box" } },
   },
+  { name: "show_total", selector: { boolean: {} } },
+  { name: "total_label", selector: { text: {} } },
+  {
+    name: "total_font_size",
+    selector: { number: { min: 6, max: 48, step: 1, mode: "box" } },
+  },
+  { name: "total_color", selector: { text: {} } },
+  { name: "show_segment_names", selector: { boolean: {} } },
   { name: "show_legend", selector: { boolean: {} } },
   { name: "show_legend_values", selector: { boolean: {} } },
   { name: "show_legend_percent", selector: { boolean: {} } },
@@ -111,6 +120,11 @@ const EDITOR_LABELS = {
   value_font_size: "Segment label font size (px)",
   value_color: "Segment label color",
   min_label_percent: "Hide segment labels below this % of the bar",
+  show_total: "Show the total",
+  total_label: "Total label",
+  total_font_size: "Total font size (px)",
+  total_color: "Total color",
+  show_segment_names: "Include names in the labels beside a vertical bar",
   show_legend: "Show legend",
   show_legend_values: "Show values in the legend",
   show_legend_percent: "Show percentages in the legend",
@@ -132,6 +146,7 @@ class DistributionExCard extends LitElement {
       config: { attribute: false },
       _hidden: { attribute: false },
       _width: { attribute: false },
+      _barHeight: { attribute: false },
     };
   }
 
@@ -139,6 +154,7 @@ class DistributionExCard extends LitElement {
     super();
     this._hidden = [];
     this._width = DEFAULT_WIDTH;
+    this._barHeight = DEFAULT_BAR_LENGTH;
     this._clipId = uniqueId("dex-clip");
   }
 
@@ -178,6 +194,10 @@ class DistributionExCard extends LitElement {
       show_percent: false,
       value_font_size: 11,
       min_label_percent: 8,
+      show_total: false,
+      total_label: "Total",
+      total_font_size: 16,
+      show_segment_names: true,
       show_legend: true,
       show_legend_values: true,
       show_legend_percent: false,
@@ -225,6 +245,7 @@ class DistributionExCard extends LitElement {
     if (!bar) return;
     const rect = bar.getBoundingClientRect();
     if (rect.width > 0) this._width = rect.width;
+    if (rect.height > 0) this._barHeight = rect.height;
   }
 
   _palette() {
@@ -275,6 +296,18 @@ class DistributionExCard extends LitElement {
     return `${shown.toFixed(item.decimals)}${item.unit ? ` ${item.unit}` : ""}`;
   }
 
+  // The total follows whatever is currently visible, so hiding a slice in the
+  // legend updates it too.
+  _formatTotal(items, total) {
+    const config = this.config;
+    const decimals = Math.max(0, Number(config.decimals) || 0);
+    const unit =
+      config.unit ||
+      (items.find((i) => !i.hidden && i.unit) || items.find((i) => i.unit) || {}).unit ||
+      "";
+    return `${total.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
+  }
+
   _toggle(index) {
     this._hidden = this._hidden.includes(index)
       ? this._hidden.filter((i) => i !== index)
@@ -295,10 +328,14 @@ class DistributionExCard extends LitElement {
       thickness / 2
     );
     const gap = Number.isFinite(Number(config.bar_gap)) ? Number(config.bar_gap) : 2;
-    const length = vertical ? Number(config.card_height) || 160 : this._width;
+    const length = vertical ? this._barHeight : this._width;
 
-    const width = vertical ? thickness : length;
+    // Vertical bars keep their labels beside the bar, lined up with the slice
+    // each one describes, so the whole width is used rather than cramming text
+    // into a narrow column.
+    const width = vertical ? this._width : length;
     const height = vertical ? length : thickness;
+    const labelX = thickness + 10;
     const visible = items.filter((i) => !i.hidden && i.magnitude > 0);
 
     const valueFontSize = Number(config.value_font_size) || 11;
@@ -332,12 +369,17 @@ class DistributionExCard extends LitElement {
       >
         <defs>
           <clipPath id=${this._clipId}>
-            <rect x="0" y="0" width=${width} height=${height} rx=${radius} ry=${radius} />
+            <rect
+              x="0" y="0"
+              width=${vertical ? thickness : width}
+              height=${height}
+              rx=${radius} ry=${radius}
+            />
           </clipPath>
         </defs>
         <g clip-path="url(#${this._clipId})">
           <rect
-            x="0" y="0" width=${width} height=${height}
+            x="0" y="0" width=${vertical ? thickness : width} height=${height}
             fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
           />
           ${segments.map(({ item, start, drawn }) =>
@@ -345,7 +387,7 @@ class DistributionExCard extends LitElement {
               ? svg`
                 <rect
                   class="segment"
-                  x="0" y=${start} width=${width} height=${drawn}
+                  x="0" y=${start} width=${thickness} height=${drawn}
                   fill=${item.color}
                   @click=${() => this._moreInfo(item.entity)}
                 ><title>${item.name}: ${this._formatValue(item)}</title></rect>
@@ -362,20 +404,46 @@ class DistributionExCard extends LitElement {
         </g>
         ${config.show_values === false
           ? svg``
-          : segments.map(({ item, start, drawn, percent, label }) =>
-              percent < minLabel || drawn <= 0
-                ? svg``
-                : svg`
+          : segments.map(({ item, start, drawn, percent, label }) => {
+              if (percent < minLabel || drawn <= 0) return svg``;
+              if (!vertical) {
+                // Sits inside the slice, so it wears a light ink that reads on
+                // any of the palette fills.
+                return svg`
                   <text
                     class="segment-label"
-                    x=${vertical ? width / 2 : start + drawn / 2}
-                    y=${vertical ? start + drawn / 2 : height / 2}
+                    x=${start + drawn / 2}
+                    y=${height / 2}
                     text-anchor="middle"
                     dominant-baseline="central"
                     style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
                   >${label}</text>
-                `
-            )}
+                `;
+              }
+              // Beside the bar, vertically centred on its slice. Sitting on the
+              // card surface it takes normal text ink, with the slice's colour
+              // to its left carrying the identity.
+              return svg`
+                <text
+                  class="segment-aside"
+                  x=${labelX}
+                  y=${start + drawn / 2}
+                  text-anchor="start"
+                  dominant-baseline="central"
+                  style="font-size: ${valueFontSize}px"
+                  @click=${() => this._moreInfo(item.entity)}
+                >
+                  ${config.show_segment_names === false
+                    ? svg``
+                    : svg`<tspan class="aside-name">${item.name}</tspan>`}
+                  <tspan
+                    class="aside-value"
+                    dx=${config.show_segment_names === false ? 0 : 6}
+                    style=${config.value_color ? `fill: ${config.value_color}` : ""}
+                  >${label}</tspan>
+                </text>
+              `;
+            })}
       </svg>
     `;
   }
@@ -397,11 +465,26 @@ class DistributionExCard extends LitElement {
     return html`
       <ha-card>
         <div class="root" style="padding: ${padding}px">
-          ${config.title
-            ? html`<div
-                class="title"
-                style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
-              >${config.title}</div>`
+          ${config.title || config.show_total
+            ? html`<div class="header">
+                ${config.title
+                  ? html`<div
+                      class="title"
+                      style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
+                    >${config.title}</div>`
+                  : html`<span></span>`}
+                ${config.show_total
+                  ? html`<div
+                      class="total"
+                      style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
+                    >
+                      ${config.total_label
+                        ? html`<span class="total-label">${config.total_label}</span>`
+                        : ""}
+                      <span class="total-value">${this._formatTotal(items, total)}</span>
+                    </div>`
+                  : ""}
+              </div>`
             : ""}
           <div class="bar-wrap ${config.orientation === "vertical" ? "vertical" : ""}">
             ${this._renderBar(items, total)}
@@ -460,9 +543,26 @@ class DistributionExCard extends LitElement {
         flex-direction: column;
         gap: 10px;
       }
+      .header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
       .title {
         color: var(--primary-text-color, #fff);
         font-weight: 500;
+      }
+      .total {
+        color: var(--primary-text-color, #fff);
+        white-space: nowrap;
+      }
+      .total-label {
+        color: var(--secondary-text-color, #9e9e9e);
+        margin-right: 6px;
+      }
+      .total-value {
+        font-weight: 700;
       }
       .bar-wrap {
         width: 100%;
@@ -475,11 +575,9 @@ class DistributionExCard extends LitElement {
       .bar-wrap.vertical {
         flex: 1;
         min-height: 0;
-        display: flex;
-        justify-content: center;
       }
       .bar-wrap.vertical svg {
-        width: auto;
+        width: 100%;
         height: 100%;
       }
       .segment {
@@ -491,6 +589,16 @@ class DistributionExCard extends LitElement {
         fill: #fff;
         font-weight: 600;
         pointer-events: none;
+      }
+      .segment-aside {
+        cursor: pointer;
+      }
+      .aside-name {
+        fill: var(--secondary-text-color, #9e9e9e);
+      }
+      .aside-value {
+        fill: var(--primary-text-color, #fff);
+        font-weight: 600;
       }
       .legend {
         display: flex;

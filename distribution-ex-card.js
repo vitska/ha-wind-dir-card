@@ -93,6 +93,7 @@ function defineEditor(tag, schema, labels) {
 
 // src/distribution-ex-card.js
 var DEFAULT_WIDTH = 320;
+var DEFAULT_BAR_LENGTH = 180;
 var PALETTE_LIGHT = [
   "#2a78d6",
   "#eb6834",
@@ -156,6 +157,14 @@ var EDITOR_SCHEMA = [
     name: "min_label_percent",
     selector: { number: { min: 0, max: 50, step: 1, mode: "box" } }
   },
+  { name: "show_total", selector: { boolean: {} } },
+  { name: "total_label", selector: { text: {} } },
+  {
+    name: "total_font_size",
+    selector: { number: { min: 6, max: 48, step: 1, mode: "box" } }
+  },
+  { name: "total_color", selector: { text: {} } },
+  { name: "show_segment_names", selector: { boolean: {} } },
   { name: "show_legend", selector: { boolean: {} } },
   { name: "show_legend_values", selector: { boolean: {} } },
   { name: "show_legend_percent", selector: { boolean: {} } },
@@ -196,6 +205,11 @@ var EDITOR_LABELS = {
   value_font_size: "Segment label font size (px)",
   value_color: "Segment label color",
   min_label_percent: "Hide segment labels below this % of the bar",
+  show_total: "Show the total",
+  total_label: "Total label",
+  total_font_size: "Total font size (px)",
+  total_color: "Total color",
+  show_segment_names: "Include names in the labels beside a vertical bar",
   show_legend: "Show legend",
   show_legend_values: "Show values in the legend",
   show_legend_percent: "Show percentages in the legend",
@@ -214,13 +228,15 @@ var DistributionExCard = class extends LitElement2 {
       hass: { attribute: false },
       config: { attribute: false },
       _hidden: { attribute: false },
-      _width: { attribute: false }
+      _width: { attribute: false },
+      _barHeight: { attribute: false }
     };
   }
   constructor() {
     super();
     this._hidden = [];
     this._width = DEFAULT_WIDTH;
+    this._barHeight = DEFAULT_BAR_LENGTH;
     this._clipId = uniqueId("dex-clip");
   }
   static getStubConfig(hass) {
@@ -250,6 +266,10 @@ var DistributionExCard = class extends LitElement2 {
       show_percent: false,
       value_font_size: 11,
       min_label_percent: 8,
+      show_total: false,
+      total_label: "Total",
+      total_font_size: 16,
+      show_segment_names: true,
       show_legend: true,
       show_legend_values: true,
       show_legend_percent: false,
@@ -289,6 +309,7 @@ var DistributionExCard = class extends LitElement2 {
     if (!bar) return;
     const rect = bar.getBoundingClientRect();
     if (rect.width > 0) this._width = rect.width;
+    if (rect.height > 0) this._barHeight = rect.height;
   }
   _palette() {
     const custom = this.config.colors;
@@ -326,6 +347,14 @@ var DistributionExCard = class extends LitElement2 {
     const shown = item.displayAbs ? Math.abs(item.value) : item.value;
     return `${shown.toFixed(item.decimals)}${item.unit ? ` ${item.unit}` : ""}`;
   }
+  // The total follows whatever is currently visible, so hiding a slice in the
+  // legend updates it too.
+  _formatTotal(items, total) {
+    const config = this.config;
+    const decimals = Math.max(0, Number(config.decimals) || 0);
+    const unit = config.unit || (items.find((i) => !i.hidden && i.unit) || items.find((i) => i.unit) || {}).unit || "";
+    return `${total.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
+  }
   _toggle(index) {
     this._hidden = this._hidden.includes(index) ? this._hidden.filter((i) => i !== index) : [...this._hidden, index];
   }
@@ -342,9 +371,10 @@ var DistributionExCard = class extends LitElement2 {
       thickness / 2
     );
     const gap = Number.isFinite(Number(config.bar_gap)) ? Number(config.bar_gap) : 2;
-    const length = vertical ? Number(config.card_height) || 160 : this._width;
-    const width = vertical ? thickness : length;
+    const length = vertical ? this._barHeight : this._width;
+    const width = vertical ? this._width : length;
     const height = vertical ? length : thickness;
+    const labelX = thickness + 10;
     const visible = items.filter((i) => !i.hidden && i.magnitude > 0);
     const valueFontSize = Number(config.value_font_size) || 11;
     const minLabel = Number.isFinite(Number(config.min_label_percent)) ? Number(config.min_label_percent) : 8;
@@ -369,19 +399,24 @@ var DistributionExCard = class extends LitElement2 {
       >
         <defs>
           <clipPath id=${this._clipId}>
-            <rect x="0" y="0" width=${width} height=${height} rx=${radius} ry=${radius} />
+            <rect
+              x="0" y="0"
+              width=${vertical ? thickness : width}
+              height=${height}
+              rx=${radius} ry=${radius}
+            />
           </clipPath>
         </defs>
         <g clip-path="url(#${this._clipId})">
           <rect
-            x="0" y="0" width=${width} height=${height}
+            x="0" y="0" width=${vertical ? thickness : width} height=${height}
             fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
           />
           ${segments.map(
       ({ item, start, drawn }) => vertical ? svg`
                 <rect
                   class="segment"
-                  x="0" y=${start} width=${width} height=${drawn}
+                  x="0" y=${start} width=${thickness} height=${drawn}
                   fill=${item.color}
                   @click=${() => this._moreInfo(item.entity)}
                 ><title>${item.name}: ${this._formatValue(item)}</title></rect>
@@ -395,18 +430,39 @@ var DistributionExCard = class extends LitElement2 {
               `
     )}
         </g>
-        ${config.show_values === false ? svg`` : segments.map(
-      ({ item, start, drawn, percent, label }) => percent < minLabel || drawn <= 0 ? svg`` : svg`
+        ${config.show_values === false ? svg`` : segments.map(({ item, start, drawn, percent, label }) => {
+      if (percent < minLabel || drawn <= 0) return svg``;
+      if (!vertical) {
+        return svg`
                   <text
                     class="segment-label"
-                    x=${vertical ? width / 2 : start + drawn / 2}
-                    y=${vertical ? start + drawn / 2 : height / 2}
+                    x=${start + drawn / 2}
+                    y=${height / 2}
                     text-anchor="middle"
                     dominant-baseline="central"
                     style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
                   >${label}</text>
-                `
-    )}
+                `;
+      }
+      return svg`
+                <text
+                  class="segment-aside"
+                  x=${labelX}
+                  y=${start + drawn / 2}
+                  text-anchor="start"
+                  dominant-baseline="central"
+                  style="font-size: ${valueFontSize}px"
+                  @click=${() => this._moreInfo(item.entity)}
+                >
+                  ${config.show_segment_names === false ? svg`` : svg`<tspan class="aside-name">${item.name}</tspan>`}
+                  <tspan
+                    class="aside-value"
+                    dx=${config.show_segment_names === false ? 0 : 6}
+                    style=${config.value_color ? `fill: ${config.value_color}` : ""}
+                  >${label}</tspan>
+                </text>
+              `;
+    })}
       </svg>
     `;
   }
@@ -423,10 +479,19 @@ var DistributionExCard = class extends LitElement2 {
     return html2`
       <ha-card>
         <div class="root" style="padding: ${padding}px">
-          ${config.title ? html2`<div
-                class="title"
-                style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
-              >${config.title}</div>` : ""}
+          ${config.title || config.show_total ? html2`<div class="header">
+                ${config.title ? html2`<div
+                      class="title"
+                      style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
+                    >${config.title}</div>` : html2`<span></span>`}
+                ${config.show_total ? html2`<div
+                      class="total"
+                      style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
+                    >
+                      ${config.total_label ? html2`<span class="total-label">${config.total_label}</span>` : ""}
+                      <span class="total-value">${this._formatTotal(items, total)}</span>
+                    </div>` : ""}
+              </div>` : ""}
           <div class="bar-wrap ${config.orientation === "vertical" ? "vertical" : ""}">
             ${this._renderBar(items, total)}
           </div>
@@ -477,9 +542,26 @@ var DistributionExCard = class extends LitElement2 {
         flex-direction: column;
         gap: 10px;
       }
+      .header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
       .title {
         color: var(--primary-text-color, #fff);
         font-weight: 500;
+      }
+      .total {
+        color: var(--primary-text-color, #fff);
+        white-space: nowrap;
+      }
+      .total-label {
+        color: var(--secondary-text-color, #9e9e9e);
+        margin-right: 6px;
+      }
+      .total-value {
+        font-weight: 700;
       }
       .bar-wrap {
         width: 100%;
@@ -492,11 +574,9 @@ var DistributionExCard = class extends LitElement2 {
       .bar-wrap.vertical {
         flex: 1;
         min-height: 0;
-        display: flex;
-        justify-content: center;
       }
       .bar-wrap.vertical svg {
-        width: auto;
+        width: 100%;
         height: 100%;
       }
       .segment {
@@ -508,6 +588,16 @@ var DistributionExCard = class extends LitElement2 {
         fill: #fff;
         font-weight: 600;
         pointer-events: none;
+      }
+      .segment-aside {
+        cursor: pointer;
+      }
+      .aside-name {
+        fill: var(--secondary-text-color, #9e9e9e);
+      }
+      .aside-value {
+        fill: var(--primary-text-color, #fff);
+        font-weight: 600;
       }
       .legend {
         display: flex;
