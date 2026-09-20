@@ -4,7 +4,6 @@ import { VERSION } from "./shared.js";
 
 import "./wind-dir-card.js";
 import "./sensor-ex-card.js";
-import "./power-distribution-ex-card.js";
 
 console.info(
   `%c SVG CARDS %c ${VERSION} `,

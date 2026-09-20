@@ -20,7 +20,6 @@ ENTRIES=(
   "ha-cards"        # every card, one resource
   "wind-dir-card"   # standalone; also keeps the pre-collection resource URL working
   "sensor-ex-card"  # standalone
-  "power-distribution-ex-card" # standalone
 )
 
 for entry in "${ENTRIES[@]}"; do
