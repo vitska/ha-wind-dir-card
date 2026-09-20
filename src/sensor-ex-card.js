@@ -149,7 +149,7 @@ const EDITOR_LABELS = {
   graph_height: "Graph height (fraction of the card, 0-1)",
   y_min: "Y axis minimum (auto if unset)",
   y_max: "Y axis maximum (auto if unset)",
-  card_height: "Minimum card height (px)",
+  card_height: "Card height (px, unset = fill the tile)",
   padding: "Padding around contents (px, 0 = fill tile)",
   refresh_interval: "History refresh interval (seconds)",
 };
@@ -232,7 +232,6 @@ class SensorExCard extends LitElement {
       line_width: 2,
       fill_opacity: 0.3,
       graph_height: 0.45,
-      card_height: 120,
       refresh_interval: 300,
       padding: 0,
       ...config,
@@ -270,8 +269,19 @@ class SensorExCard extends LitElement {
     }
   }
 
+  // card_height pins the card's height. Without it the card fills whatever the
+  // layout gives it, which in a stack means matching the tallest sibling.
+  _fixedHeight() {
+    const height = Number(this.config && this.config.card_height);
+    return Number.isFinite(height) && height > 0 ? height : 0;
+  }
+
   updated() {
     if (!this.hass || !this.config) return;
+    // Set on the host: an explicit cross-size stops a flex/grid parent from
+    // stretching the card, which styling ha-card alone cannot do.
+    const fixedHeight = this._fixedHeight();
+    this.style.height = fixedHeight ? `${fixedHeight}px` : "";
     // Refetch only when the query itself changes, otherwise every state update
     // would trigger a round trip.
     const key = `${this.config.entity}|${this.config.hours_to_show}`;
@@ -429,6 +439,7 @@ class SensorExCard extends LitElement {
     const padding = Number.isFinite(Number(this.config.padding))
       ? Number(this.config.padding)
       : 0;
+    const fixedHeight = this._fixedHeight();
 
     const label =
       this.config.name ||
@@ -476,7 +487,7 @@ class SensorExCard extends LitElement {
 
     return html`
       <ha-card>
-        <div class="root" style="min-height: ${Number(this.config.card_height) || 120}px">
+        <div class="root" style=${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px`}>
           <svg viewBox="0 0 ${width} ${height}" width=${width} height=${height}>
             ${showGraph ? this._renderGraph(graphRect) : svg``}
             ${!showLabel

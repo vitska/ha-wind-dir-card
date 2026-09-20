@@ -221,7 +221,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `fill_opacity`       | no       | Opacity at the top of the fill gradient, fading to 0 (default `0.3`)         |
 | `graph_height`       | no       | Graph height as a fraction of the card, 0–1 (default `0.45`)                 |
 | `y_min` / `y_max`    | no       | Fixed Y axis bounds (default: auto-scaled to the data)                       |
-| `card_height`        | no       | Minimum card height in px (default `120`)                                    |
+| `card_height`        | no       | Fixed card height in px. Unset (default) fills the tile, which in a stack means matching the tallest sibling |
 | `padding`            | no       | Padding around the contents in px (default `0`, fills the tile edge-to-edge) |
 | `refresh_interval`   | no       | How often to refetch history, in seconds (default `300`)                     |
 
@@ -283,6 +283,34 @@ show_graph: false
 card_height: 70
 value_font_size: 48
 ```
+
+**Controlling the height.** By default the card fills its tile, so in a
+`horizontal-stack` next to a tall card (like the compass) it stretches to match
+it. Set `card_height` to pin it instead:
+
+```yaml
+type: horizontal-stack
+cards:
+  - type: custom:wind-dir-card
+    wind_direction_entity: sensor.wind_direction
+    wind_speed_entity: sensor.wind_speed
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: custom:sensor-ex-card
+        entity: sensor.outside_temperature
+        card_height: 100
+      - type: custom:sensor-ex-card
+        entity: sensor.pressure
+        card_height: 100
+```
+
+Shrinking the cards leaves empty space in the row, because the compass still
+sets the row height. To close the gap, shorten the whole row rather than the
+sensor cards — the compass is square, so its height follows its width; give it
+a narrower column (for example put the stack in a `grid` and let the compass
+take one column of three) and everything shrinks together.
 
 **Sparkline only** — hide the readout and let the graph fill the whole tile:
 
