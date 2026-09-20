@@ -437,9 +437,70 @@ battery -> home   = battery discharging
 home              = the three inflows above, unless home_entity is set
 ```
 
-Give grid and battery either as one **signed** entity (`+` import / discharge,
-`-` export / charge) or as a **separate pair** of entities. If your sensor uses
-the opposite sign convention, set `grid_invert` / `battery_invert`.
+### Entities
+
+Entities are given as a list, each with an optional `name`:
+
+```yaml
+type: custom:distribution-ex-card
+entities:
+  - entity: sensor.deye10k_day_pv_power
+    name: PV
+  - entity: sensor.deye10k_day_battery_charge
+    name: BT-C
+  - entity: sensor.deye10k_day_battery_discharge
+    name: BT-D
+  - entity: sensor.deye10k_day_grid_import
+    name: GRID-IN
+```
+
+Each entity's **role** — what it contributes to the diagram — is inferred from
+its entity id and name, so the example above needs no further configuration.
+Recognised roles and the keywords that select them:
+
+| Role | Inferred from | Feeds |
+| ---- | ------------- | ----- |
+| `solar` | `solar`, `pv`, `photovolt`, `produc`, `yield` | the Solar node |
+| `grid_import` | `import`, `buy`, `from_grid`, `purchas` | grid → home |
+| `grid_export` | `export`, `sell`, `feed_in`, `to_grid` | solar → grid |
+| `battery_charge` | `charg` | solar → battery |
+| `battery_discharge` | `discharg` | battery → home |
+| `grid` | `grid`, `mains`, `utility` | signed: splits into import/export |
+| `battery` | `batt` | signed: splits into discharge/charge |
+| `home` | `home`, `house`, `load`, `consum`, `usage` | the Home node |
+
+Set `role:` explicitly when the name isn't guessable. Per entity you can also
+set `color`, `icon` and `invert`:
+
+```yaml
+entities:
+  - entity: sensor.inverter_ch1
+    role: solar
+    name: String 1
+    color: "#ffd43b"
+  - entity: sensor.meter_power
+    role: grid          # one signed entity, + import / - export
+    invert: true        # ...unless yours is the other way round
+```
+
+Notes on how names are used:
+
+- On a **directional** role (`grid_import`, `grid_export`, `battery_charge`,
+  `battery_discharge`) the name labels that **flow line** — which is how `BT-C`
+  and `BT-D` end up on the charge and discharge lines respectively. Turn these
+  off with `show_flow_labels: false`.
+- On a **node** role (`solar`, `home`, or a signed `grid`/`battery`) the name
+  renames the **node** instead, since one entity covers both directions.
+- Several entities can share a role and are **summed** — handy for multiple PV
+  strings.
+
+A flow is only drawn when both of its nodes exist. Charging and export
+originate from solar, so configure a solar entity if you want those lines.
+
+The older fixed options (`solar_entity`, `grid_import_entity`,
+`battery_entity`, `grid_invert` …) still work and can be mixed with the list.
+They're also what the visual editor edits, since `ha-form` can't edit a list of
+objects — use YAML for `entities:`.
 
 ### Configuration
 
@@ -448,6 +509,9 @@ At least one entity is required.
 | Option                      | Required | Description                                                              |
 | --------------------------- | -------- | ------------------------------------------------------------------------ |
 | `type`                       | yes      | `custom:distribution-ex-card`                                             |
+| `entities`                   | no       | List of entities with optional `name`, `role`, `color`, `icon`, `invert` (see above) |
+| `show_flow_labels`           | no       | Show the per-entity names on their flow lines (default `true`)            |
+| `flow_label_font_size`       | no       | Flow label font size in px (default `11`)                                 |
 | `solar_entity`               | no       | Solar production power                                                    |
 | `grid_entity`                | no       | Grid power, signed: `+` import, `-` export                                |
 | `grid_import_entity`         | no       | Grid import power (use instead of a signed `grid_entity`)                 |
@@ -485,17 +549,36 @@ At least one entity is required.
 
 ### Examples
 
-**Signed entities** — the common case for most inverters:
+**Entities list**, roles inferred, names labelling each flow:
 
 ```yaml
 type: custom:distribution-ex-card
-solar_entity: sensor.solar_power
-grid_entity: sensor.grid_power
-battery_entity: sensor.battery_power
+entities:
+  - entity: sensor.deye10k_day_pv_power
+    name: PV
+  - entity: sensor.deye10k_day_battery_charge
+    name: BT-C
+  - entity: sensor.deye10k_day_battery_discharge
+    name: BT-D
+  - entity: sensor.deye10k_day_grid_import
+    name: GRID-IN
+  - entity: sensor.deye10k_day_grid_export
+    name: GRID-OUT
 card_height: 260
 ```
 
-**Separate import/export entities**, no battery, with styling:
+**Signed entities** — one entity each for grid and battery:
+
+```yaml
+type: custom:distribution-ex-card
+entities:
+  - entity: sensor.solar_power
+  - entity: sensor.grid_power      # + import, - export
+  - entity: sensor.battery_power   # + discharge, - charge
+card_height: 260
+```
+
+**Styled**, using the fixed options that the visual editor also writes:
 
 ```yaml
 type: custom:distribution-ex-card

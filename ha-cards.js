@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "2.6.0";
+var VERSION = "2.7.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1284,6 +1284,39 @@ var NODE_DEFAULTS = {
   battery: { icon: "mdi:battery", color: "#4caf50", name: "Battery" },
   home: { icon: "mdi:home", color: "#9e9e9e", name: "Home" }
 };
+var ROLES = {
+  solar: { node: "solar", directional: false },
+  home: { node: "home", directional: false },
+  grid: { node: "grid", directional: false, signed: ["grid_import", "grid_export"] },
+  battery: {
+    node: "battery",
+    directional: false,
+    signed: ["battery_discharge", "battery_charge"]
+  },
+  grid_import: { node: "grid", directional: true },
+  grid_export: { node: "grid", directional: true },
+  battery_charge: { node: "battery", directional: true },
+  battery_discharge: { node: "battery", directional: true }
+};
+var ROLE_PATTERNS = [
+  ["battery_discharge", /discharg|bat\w*[_ -]?out/],
+  ["battery_charge", /charg|bat\w*[_ -]?in\b/],
+  ["grid_export", /export|sell|feed[_ -]?in|to[_ -]?grid|delivery/],
+  ["grid_import", /import|buy|from[_ -]?grid|purchas/],
+  // "pv" needs explicit separators: \b won't fire in sensor.pv_power, since
+  // underscore counts as a word character.
+  ["solar", /solar|(?:^|[^a-z])pv(?:[^a-z]|$)|photovolt|produc|yield/],
+  ["battery", /batt/],
+  ["grid", /grid|mains|utility/],
+  ["home", /home|house|load|consum|usage/]
+];
+function inferRole(entityId, name) {
+  const haystack = `${entityId || ""} ${name || ""}`.toLowerCase();
+  for (const [role, pattern] of ROLE_PATTERNS) {
+    if (pattern.test(haystack)) return role;
+  }
+  return null;
+}
 var EDITOR_SCHEMA3 = [
   { name: "solar_entity", selector: { entity: {} } },
   { name: "grid_entity", selector: { entity: {} } },
@@ -1346,6 +1379,11 @@ var EDITOR_SCHEMA3 = [
     selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } }
   },
   { name: "show_flow", selector: { boolean: {} } },
+  { name: "show_flow_labels", selector: { boolean: {} } },
+  {
+    name: "flow_label_font_size",
+    selector: { number: { min: 6, max: 32, step: 1, mode: "box" } }
+  },
   {
     name: "flow_speed",
     selector: { number: { min: 0.1, max: 5, step: 0.1, mode: "box" } }
@@ -1409,6 +1447,8 @@ var EDITOR_LABELS3 = {
   line_width: "Flow line width (px)",
   inactive_opacity: "Opacity of lines carrying no flow (0-1)",
   show_flow: "Animate flowing dots",
+  show_flow_labels: "Show per-flow labels (names from the entities list)",
+  flow_label_font_size: "Flow label font size (px)",
   flow_speed: "Flow animation speed multiplier",
   dot_size: "Flow dot radius (px)",
   dot_count: "Flow dots per line",
@@ -1443,8 +1483,19 @@ var DistributionExCard = class extends LitElement2 {
     return document.createElement("distribution-ex-card-editor");
   }
   setConfig(config) {
-    if (!config.solar_entity && !config.grid_entity && !config.grid_import_entity && !config.grid_export_entity && !config.battery_entity && !config.home_entity) {
-      throw new Error("at least one entity is required");
+    const hasList = Array.isArray(config.entities) && config.entities.length > 0;
+    const hasFixed = [
+      "solar_entity",
+      "grid_entity",
+      "grid_import_entity",
+      "grid_export_entity",
+      "battery_entity",
+      "battery_charge_entity",
+      "battery_discharge_entity",
+      "home_entity"
+    ].some((key) => config[key]);
+    if (!hasList && !hasFixed) {
+      throw new Error("define entities: or at least one *_entity option");
     }
     this.config = {
       show_labels: true,
@@ -1459,6 +1510,8 @@ var DistributionExCard = class extends LitElement2 {
       line_width: 2,
       inactive_opacity: 0.25,
       show_flow: true,
+      show_flow_labels: true,
+      flow_label_font_size: 11,
       flow_speed: 1,
       dot_size: 3.5,
       dot_count: 2,
@@ -1499,66 +1552,130 @@ var DistributionExCard = class extends LitElement2 {
       this._height = rect.height;
     }
   }
-  // Grid and battery can be given either as one signed entity or as a separate
-  // pair. Returns magnitudes so the renderer never deals with signs.
-  _splitSigned(signedEntity, positiveEntity, negativeEntity, invert) {
-    if (positiveEntity || negativeEntity) {
-      return {
-        positive: Math.max(0, getNumber(this.hass, positiveEntity) || 0),
-        negative: Math.max(0, getNumber(this.hass, negativeEntity) || 0),
-        present: Boolean(positiveEntity || negativeEntity)
-      };
-    }
-    let value = getNumber(this.hass, signedEntity);
-    if (value === null) return { positive: 0, negative: 0, present: false };
-    if (invert) value = -value;
-    return {
-      positive: Math.max(0, value),
-      negative: Math.max(0, -value),
-      present: true
+  // Folds both config styles - the `entities:` list and the fixed *_entity
+  // options - into one set of role totals, so the renderer never has to care
+  // which was used. Entities sharing a role are summed.
+  _collectRoles() {
+    const roles = {};
+    Object.keys(ROLES).forEach((role) => {
+      if (!ROLES[role].signed) roles[role] = { value: 0, present: false, meta: {} };
+    });
+    const nodeMeta = { solar: {}, grid: {}, battery: {}, home: {} };
+    const add = (role, value, meta) => {
+      const slot = roles[role];
+      if (!slot) return;
+      slot.present = true;
+      slot.value += Math.max(0, value);
+      if (meta && ROLES[role] && ROLES[role].directional) {
+        if (meta.name && !slot.meta.name) slot.meta.name = meta.name;
+        if (meta.color && !slot.meta.color) slot.meta.color = meta.color;
+      }
     };
+    const addNodeMeta = (node, meta) => {
+      if (!meta || !nodeMeta[node]) return;
+      ["name", "color", "icon"].forEach((key) => {
+        if (meta[key] && !nodeMeta[node][key]) nodeMeta[node][key] = meta[key];
+      });
+    };
+    const addSigned = (role, value, meta) => {
+      const [positive, negative] = ROLES[role].signed;
+      add(positive, Math.max(0, value));
+      add(negative, Math.max(0, -value));
+      addNodeMeta(ROLES[role].node, meta);
+    };
+    const ingest = (entityId, role, meta) => {
+      if (!entityId || !role || !ROLES[role]) return;
+      let value = getNumber(this.hass, entityId);
+      if (value === null) value = 0;
+      if (meta && meta.invert) value = -value;
+      if (ROLES[role].signed) {
+        addSigned(role, value, meta);
+      } else {
+        add(role, value, meta);
+        if (!ROLES[role].directional) addNodeMeta(ROLES[role].node, meta);
+      }
+    };
+    const list = Array.isArray(this.config.entities) ? this.config.entities : [];
+    list.forEach((raw) => {
+      const item = typeof raw === "string" ? { entity: raw } : raw || {};
+      ingest(item.entity, item.role || inferRole(item.entity, item.name), item);
+    });
+    const config = this.config;
+    ingest(config.solar_entity, "solar");
+    ingest(config.grid_import_entity, "grid_import");
+    ingest(config.grid_export_entity, "grid_export");
+    ingest(config.grid_entity, "grid", { invert: config.grid_invert });
+    ingest(config.battery_charge_entity, "battery_charge");
+    ingest(config.battery_discharge_entity, "battery_discharge");
+    ingest(config.battery_entity, "battery", { invert: config.battery_invert });
+    ingest(config.home_entity, "home");
+    return { roles, nodeMeta };
+  }
+  // Values all share one unit, taken from the first entity that declares one.
+  _resolveUnit() {
+    const list = Array.isArray(this.config.entities) ? this.config.entities : [];
+    const candidates = [
+      ...list.map((raw) => typeof raw === "string" ? raw : raw && raw.entity),
+      this.config.solar_entity,
+      this.config.grid_entity,
+      this.config.grid_import_entity,
+      this.config.grid_export_entity,
+      this.config.battery_entity,
+      this.config.battery_charge_entity,
+      this.config.battery_discharge_entity,
+      this.config.home_entity
+    ];
+    for (const entityId of candidates) {
+      const unit = entityId ? getUnit(this.hass, entityId, void 0, "") : "";
+      if (unit) return unit;
+    }
+    return "";
   }
   _flows() {
-    const config = this.config;
-    const solar = Math.max(0, getNumber(this.hass, config.solar_entity) || 0);
-    const grid = this._splitSigned(
-      config.grid_entity,
-      config.grid_import_entity,
-      config.grid_export_entity,
-      config.grid_invert
-    );
-    const battery = this._splitSigned(
-      config.battery_entity,
-      config.battery_discharge_entity,
-      config.battery_charge_entity,
-      config.battery_invert
-    );
-    const solarToGrid = grid.negative;
-    const solarToBattery = battery.negative;
+    const { roles, nodeMeta } = this._collectRoles();
+    const solar = roles.solar.value;
+    const solarToGrid = roles.grid_export.value;
+    const solarToBattery = roles.battery_charge.value;
     const solarToHome = Math.max(0, solar - solarToGrid - solarToBattery);
-    const gridToHome = grid.positive;
-    const batteryToHome = battery.positive;
-    const homeEntity = getNumber(this.hass, config.home_entity);
-    const home = homeEntity !== null ? homeEntity : solarToHome + gridToHome + batteryToHome;
+    const gridToHome = roles.grid_import.value;
+    const batteryToHome = roles.battery_discharge.value;
+    const home = roles.home.present ? roles.home.value : solarToHome + gridToHome + batteryToHome;
+    const line = (id, from, to, value, role) => ({
+      id,
+      from,
+      to,
+      value,
+      label: roles[role].meta.name,
+      color: roles[role].meta.color
+    });
     return {
+      nodeMeta,
       present: {
-        solar: Boolean(config.solar_entity),
-        grid: grid.present,
-        battery: battery.present,
+        solar: roles.solar.present,
+        grid: roles.grid_import.present || roles.grid_export.present,
+        battery: roles.battery_charge.present || roles.battery_discharge.present,
         home: true
       },
-      totals: { solar, grid: grid.positive - grid.negative, battery: battery.positive - battery.negative, home },
+      totals: {
+        solar,
+        grid: gridToHome - solarToGrid,
+        battery: batteryToHome - solarToBattery,
+        home
+      },
       lines: [
-        { id: "solar-home", from: "solar", to: "home", value: solarToHome },
-        { id: "solar-grid", from: "solar", to: "grid", value: solarToGrid },
-        { id: "solar-battery", from: "solar", to: "battery", value: solarToBattery },
-        { id: "grid-home", from: "grid", to: "home", value: gridToHome },
-        { id: "battery-home", from: "battery", to: "home", value: batteryToHome }
+        line("solar-home", "solar", "home", solarToHome, "solar"),
+        line("solar-grid", "solar", "grid", solarToGrid, "grid_export"),
+        line("solar-battery", "solar", "battery", solarToBattery, "battery_charge"),
+        line("grid-home", "grid", "home", gridToHome, "grid_import"),
+        line("battery-home", "battery", "home", batteryToHome, "battery_discharge")
       ]
     };
   }
-  _nodeColor(node) {
-    return this.config[`${node}_color`] || NODE_DEFAULTS[node].color;
+  _nodeProp(node, key, nodeMeta) {
+    return this.config[`${node}_${key}`] || nodeMeta && nodeMeta[node] && nodeMeta[node][key] || NODE_DEFAULTS[node][key];
+  }
+  _nodeColor(node, nodeMeta) {
+    return this._nodeProp(node, "color", nodeMeta);
   }
   _geometry(present) {
     const config = this.config;
@@ -1615,14 +1732,49 @@ var DistributionExCard = class extends LitElement2 {
     const seconds = (6 - 4 * share) / speed;
     return Math.max(0.4, Math.round(seconds * 4) / 4);
   }
-  _renderLine(line, geo, maxValue) {
+  // Midpoint of the same curve _linePath builds, for placing the flow label.
+  // Evaluating the Bezier is cheaper and more reliable than measuring the DOM
+  // path, which isn't laid out yet at render time.
+  _lineMidpoint(line, geo) {
+    const { nodes, r } = geo;
+    const from = nodes[line.from];
+    const to = nodes[line.to];
+    const quad = (p0, p1, p2) => 0.25 * p0 + 0.5 * p1 + 0.25 * p2;
+    switch (line.id) {
+      case "solar-home":
+        return { x: from.x, y: (from.y + r + (to.y - r)) / 2 };
+      case "solar-grid":
+        return {
+          x: quad(from.x - r, to.x, to.x),
+          y: quad(from.y, from.y, to.y - r)
+        };
+      case "solar-battery":
+        return {
+          x: quad(from.x + r, to.x, to.x),
+          y: quad(from.y, from.y, to.y - r)
+        };
+      case "grid-home":
+        return {
+          x: quad(from.x, from.x, to.x - r),
+          y: quad(from.y + r, to.y, to.y)
+        };
+      case "battery-home":
+        return {
+          x: quad(from.x, from.x, to.x + r),
+          y: quad(from.y + r, to.y, to.y)
+        };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+  _renderLine(line, geo, maxValue, nodeMeta) {
     const config = this.config;
     const path = this._linePath(line, geo);
     if (!path) return svg``;
     const pathId = `${this._uid}-${line.id}`;
     const minFlow = Math.abs(Number(config.min_flow) || 0);
     const active = line.value > minFlow;
-    const color = config.line_color || this._nodeColor(line.from);
+    const color = line.color || config.line_color || this._nodeColor(line.from, nodeMeta);
     const lineWidth = Number(config.line_width) || 2;
     const inactiveOpacity = Number.isFinite(Number(config.inactive_opacity)) ? Number(config.inactive_opacity) : 0.25;
     let dots = svg``;
@@ -1648,6 +1800,21 @@ var DistributionExCard = class extends LitElement2 {
         `;
       })}`;
     }
+    let label = svg``;
+    if (line.label && config.show_flow_labels !== false) {
+      const mid = this._lineMidpoint(line, geo);
+      const fontSize = Number(config.flow_label_font_size) || 11;
+      label = svg`
+        <text
+          class="flow-label"
+          x=${mid.x}
+          y=${mid.y}
+          text-anchor="middle"
+          style="font-size: ${fontSize}px; fill: ${color}"
+          opacity=${active ? 1 : inactiveOpacity}
+        >${line.label}</text>
+      `;
+    }
     return svg`
       <path
         id=${pathId}
@@ -1659,12 +1826,13 @@ var DistributionExCard = class extends LitElement2 {
         opacity=${active ? 1 : inactiveOpacity}
       />
       ${dots}
+      ${label}
     `;
   }
-  _renderNode(node, geo, value, unit) {
+  _renderNode(node, geo, value, unit, nodeMeta) {
     const config = this.config;
     const pos = geo.nodes[node];
-    const color = this._nodeColor(node);
+    const color = this._nodeColor(node, nodeMeta);
     const precision = Math.max(0, Number(config.value_precision) || 0);
     const strokeWidth = Number.isFinite(Number(config.node_stroke_width)) ? Number(config.node_stroke_width) : 2;
     const valueY = pos.y + geo.r + geo.valueFontSize;
@@ -1694,7 +1862,7 @@ var DistributionExCard = class extends LitElement2 {
             y=${labelY}
             text-anchor="middle"
             style="font-size: ${geo.labelFontSize}px"
-          >${config[`${node}_name`] || NODE_DEFAULTS[node].name}</text>
+          >${this._nodeProp(node, "name", nodeMeta)}</text>
         `}
     `;
   }
@@ -1709,12 +1877,7 @@ var DistributionExCard = class extends LitElement2 {
       (l) => flows.present[l.from] && flows.present[l.to]
     );
     const maxValue = lines.reduce((max, l) => Math.max(max, l.value), 0);
-    const unit = this.config.unit || getUnit(
-      this.hass,
-      this.config.solar_entity || this.config.grid_entity || this.config.grid_import_entity || this.config.battery_entity || this.config.home_entity,
-      void 0,
-      ""
-    );
+    const unit = this.config.unit || this._resolveUnit();
     const iconSize = Number(this.config.icon_size) || 24;
     return html2`
       <ha-card>
@@ -1723,9 +1886,11 @@ var DistributionExCard = class extends LitElement2 {
           style=${Number(this.config.card_height) > 0 ? "" : `min-height: ${DEFAULT_HEIGHT2}px`}
         >
           <svg viewBox="0 0 ${this._width} ${this._height}">
-            ${lines.map((line) => this._renderLine(line, geo, maxValue))}
+            ${lines.map(
+      (line) => this._renderLine(line, geo, maxValue, flows.nodeMeta)
+    )}
             ${nodes.map(
-      (node) => this._renderNode(node, geo, flows.totals[node], unit)
+      (node) => this._renderNode(node, geo, flows.totals[node], unit, flows.nodeMeta)
     )}
           </svg>
           ${this.config.show_icons === false ? "" : nodes.map(
@@ -1733,11 +1898,12 @@ var DistributionExCard = class extends LitElement2 {
                   <div
                     class="icon"
                     style="left: ${geo.nodes[node].x}px; top: ${geo.nodes[node].y}px; --mdc-icon-size: ${iconSize}px; color: ${this._nodeColor(
-        node
+        node,
+        flows.nodeMeta
       )}"
                   >
                     <ha-icon
-                      .icon=${this.config[`${node}_icon`] || NODE_DEFAULTS[node].icon}
+                      .icon=${this._nodeProp(node, "icon", flows.nodeMeta)}
                     ></ha-icon>
                   </div>
                 `
@@ -1778,6 +1944,9 @@ var DistributionExCard = class extends LitElement2 {
       }
       .label {
         fill: var(--secondary-text-color, #9e9e9e);
+      }
+      .flow-label {
+        font-weight: 600;
       }
     `;
   }
