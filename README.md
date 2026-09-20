@@ -10,6 +10,7 @@ options.
 | Card | Type | What it does |
 | ---- | ---- | ------------ |
 | [Wind Direction Card](#wind-direction-card) | `custom:wind-dir-card` | Compass dial with wind direction, average-direction sector, speed and gusts |
+| [Sensor Ex Card](#sensor-ex-card) | `custom:sensor-ex-card` | Sensor readout with label, value, unit and a history graph |
 
 Registering the single `ha-cards.js` resource makes every card in the
 collection available.
@@ -166,6 +167,90 @@ cards:
   `--card-background-color`, etc.) with sensible dark-theme fallbacks, so the
   card looks reasonable in both light and dark themes without configuration.
 
+## Sensor Ex Card
+
+`custom:sensor-ex-card` — the equivalent of Home Assistant's built-in sensor
+card, drawn in SVG so every part is styleable:
+
+- label (entity name, or your own)
+- entity icon
+- large value with its unit
+- filled area or line graph of the entity's recorder history
+
+Text and graph are drawn at the card's real pixel size, so nothing is stretched
+or distorted whatever tile shape it lands in. With `padding: 0` (the default)
+the graph runs edge to edge.
+
+### Configuration
+
+Only `entity` is required. The card has a visual editor, same as the compass.
+
+| Option              | Required | Description                                                                 |
+| ------------------- | -------- | --------------------------------------------------------------------------- |
+| `type`               | yes      | `custom:sensor-ex-card`                                                      |
+| `entity`             | yes      | The sensor entity to display                                                 |
+| `name`               | no       | Label text (default: the entity's friendly name)                             |
+| `icon`               | no       | Icon override (default: the entity's own icon)                               |
+| `unit`               | no       | Unit override (default: the entity's `unit_of_measurement`)                  |
+| `value_precision`    | no       | Decimal places for the value (default `1`)                                   |
+| `show_label`         | no       | Show the label; when hidden, the value moves up into its place (default `true`) |
+| `show_value`         | no       | Show the value (default `true`)                                              |
+| `show_unit`          | no       | Show the unit next to the value (default `true`)                             |
+| `show_icon`          | no       | Show the icon (default `true`)                                               |
+| `show_graph`         | no       | Show the history graph (default `true`)                                      |
+| `label_color`        | no       | CSS color for the label (default: theme secondary text color)                |
+| `value_color`        | no       | CSS color for the value (default: theme primary text color)                  |
+| `unit_color`         | no       | CSS color for the unit (default: theme secondary text color)                 |
+| `icon_color`         | no       | CSS color for the icon (default: theme icon color)                           |
+| `label_font_size`    | no       | Label font size in px (default `18`)                                         |
+| `value_font_size`    | no       | Value font size in px (default `40`)                                         |
+| `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
+| `icon_size`          | no       | Icon size in px (default `24`)                                               |
+| `color_normal`       | no       | Value color below any threshold (default: theme primary text color)          |
+| `color_warning`      | no       | Value color at/above `warning_threshold` (default `#ffa600`)                 |
+| `color_danger`       | no       | Value color at/above `danger_threshold` (default `#ff4136`)                  |
+| `warning_threshold`  | no       | Value at/above which the readout turns `color_warning`                       |
+| `danger_threshold`   | no       | Value at/above which the readout turns `color_danger`                        |
+| `hours_to_show`      | no       | Hours of history to graph (default `24`)                                     |
+| `graph_type`         | no       | `area` (line + gradient fill, default) or `line`                             |
+| `line_color`         | no       | CSS color for the graph line (default: theme accent color)                   |
+| `line_width`         | no       | Graph line width in px (default `2`)                                         |
+| `fill_color`         | no       | CSS color for the area fill (default: the line color)                        |
+| `fill_opacity`       | no       | Opacity at the top of the fill gradient, fading to 0 (default `0.3`)         |
+| `graph_height`       | no       | Graph height as a fraction of the card, 0–1 (default `0.45`)                 |
+| `y_min` / `y_max`    | no       | Fixed Y axis bounds (default: auto-scaled to the data)                       |
+| `card_height`        | no       | Minimum card height in px (default `120`)                                    |
+| `padding`            | no       | Padding around the contents in px (default `0`, fills the tile edge-to-edge) |
+| `refresh_interval`   | no       | How often to refetch history, in seconds (default `300`)                     |
+
+### Example
+
+```yaml
+type: horizontal-stack
+cards:
+  - type: custom:sensor-ex-card
+    entity: sensor.outside_temperature
+  - type: custom:sensor-ex-card
+    entity: sensor.pressure
+    name: Pressure
+    hours_to_show: 48
+    graph_type: line
+    line_color: "#9e9e9e"
+    value_precision: 0
+    warning_threshold: 1020
+    danger_threshold: 1030
+```
+
+### Notes
+
+- The graph comes from the recorder, so an entity excluded from recorder has
+  nothing to plot. The value and label still render.
+- History is fetched over the WebSocket API and refreshed on
+  `refresh_interval`; the live state is appended so the line always runs to
+  "now". If the request fails the card drops the graph rather than erroring.
+- Long windows are downsampled to 100 points by bucket averaging, so a 30-day
+  graph stays as cheap to draw as a 1-hour one.
+
 ## Repo layout
 
 Plain ES modules, no build step — HACS downloads every `.js` file from the
@@ -176,6 +261,7 @@ repo root into the same directory, so relative imports between them resolve.
 | `ha-cards.js` | Collection entry point: imports every card, logs the version banner |
 | `shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
 | `wind-dir-card.js` | Wind Direction Card; also works standalone as its own resource |
+| `sensor-ex-card.js` | Sensor Ex Card |
 
 To add a card: create `<name>-card.js`, have it register its element and call
 `registerCard(...)` from `shared.js`, then add one `import` line to
