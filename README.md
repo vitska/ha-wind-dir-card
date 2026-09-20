@@ -11,7 +11,7 @@ options.
 | ---- | ---- | ------------ |
 | [Wind Direction Card](#wind-direction-card) | `custom:wind-dir-card` | Compass dial with wind direction, average-direction sector, speed and gusts |
 | [Sensor Ex Card](#sensor-ex-card) | `custom:sensor-ex-card` | Sensor readout with label, value, unit and a history graph |
-| [Distribution Ex Card](#distribution-ex-card) | `custom:distribution-ex-card` | Energy flow between solar, grid, battery and home, with animated flow dots |
+| [Power Distribution Ex Card](#power-distribution-ex-card) | `custom:power-distribution-ex-card` | Energy flow between solar, grid, battery and home, with animated flow dots |
 
 Registering the single `ha-cards.js` resource makes every card in the
 collection available.
@@ -43,8 +43,8 @@ collection available.
    - Type: JavaScript Module
 3. Reload the dashboard.
 
-If you only want a single card, `wind-dir-card.js` and `sensor-ex-card.js`
-are also self-contained and can be used instead.
+If you only want a single card, `wind-dir-card.js`, `sensor-ex-card.js` and
+`power-distribution-ex-card.js` are also self-contained and can be used instead.
 
 Open the browser console after loading — the collection logs an `SVG CARDS`
 banner with its version, which is the quickest way to confirm which build is
@@ -410,9 +410,9 @@ cards:
 - Long windows are downsampled to 100 points by bucket averaging, so a 30-day
   graph stays as cheap to draw as a 1-hour one.
 
-## Distribution Ex Card
+## Power Distribution Ex Card
 
-`custom:distribution-ex-card` — an energy distribution diagram in the spirit of
+`custom:power-distribution-ex-card` — an energy distribution diagram in the spirit of
 Home Assistant's built-in `energy-distribution` card, drawn in SVG with the same
 depth of styling options as the other cards here.
 
@@ -442,7 +442,7 @@ home              = the three inflows above, unless home_entity is set
 Entities are given as a list, each with an optional `name`:
 
 ```yaml
-type: custom:distribution-ex-card
+type: custom:power-distribution-ex-card
 entities:
   - entity: sensor.deye10k_day_pv_power
     name: PV
@@ -508,7 +508,7 @@ At least one entity is required.
 
 | Option                      | Required | Description                                                              |
 | --------------------------- | -------- | ------------------------------------------------------------------------ |
-| `type`                       | yes      | `custom:distribution-ex-card`                                             |
+| `type`                       | yes      | `custom:power-distribution-ex-card`                                             |
 | `entities`                   | no       | List of entities with optional `name`, `role`, `color`, `icon`, `invert` (see above) |
 | `show_flow_labels`           | no       | Show the per-entity names on their flow lines (default `true`)            |
 | `flow_label_font_size`       | no       | Flow label font size in px (default `11`)                                 |
@@ -552,7 +552,7 @@ At least one entity is required.
 **Entities list**, roles inferred, names labelling each flow:
 
 ```yaml
-type: custom:distribution-ex-card
+type: custom:power-distribution-ex-card
 entities:
   - entity: sensor.deye10k_day_pv_power
     name: PV
@@ -570,7 +570,7 @@ card_height: 260
 **Signed entities** — one entity each for grid and battery:
 
 ```yaml
-type: custom:distribution-ex-card
+type: custom:power-distribution-ex-card
 entities:
   - entity: sensor.solar_power
   - entity: sensor.grid_power      # + import, - export
@@ -581,7 +581,7 @@ card_height: 260
 **Styled**, using the fixed options that the visual editor also writes:
 
 ```yaml
-type: custom:distribution-ex-card
+type: custom:power-distribution-ex-card
 solar_entity: sensor.pv_power
 grid_import_entity: sensor.grid_import_power
 grid_export_entity: sensor.grid_export_power
@@ -598,7 +598,7 @@ value_precision: 0
 **Static diagram** — no animation, dimmer idle lines:
 
 ```yaml
-type: custom:distribution-ex-card
+type: custom:power-distribution-ex-card
 solar_entity: sensor.solar_power
 grid_entity: sensor.grid_power
 show_flow: false
@@ -627,14 +627,14 @@ Sources live in `src/` as plain ES modules. `build.sh` bundles them into
 | `src/shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
 | `src/wind-dir-card.js` | Wind Direction Card |
 | `src/sensor-ex-card.js` | Sensor Ex Card |
-| `src/distribution-ex-card.js` | Distribution Ex Card |
+| `src/power-distribution-ex-card.js` | Power Distribution Ex Card |
 
 | Built artifact | Contains |
 | -------------- | -------- |
 | `ha-cards.js` | Every card — the file to install |
 | `wind-dir-card.js` | Just the compass, standalone |
 | `sensor-ex-card.js` | Just the sensor card, standalone |
-| `distribution-ex-card.js` | Just the distribution card, standalone |
+| `power-distribution-ex-card.js` | Just the distribution card, standalone |
 
 Each artifact bundles the shared code, so its only remaining import is lit from
 the CDN. That matters because HACS copies `.js` files into

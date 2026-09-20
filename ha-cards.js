@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "2.7.0";
+var VERSION = "2.8.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1275,7 +1275,7 @@ if (!customElements.get("sensor-ex-card")) {
   });
 }
 
-// src/distribution-ex-card.js
+// src/power-distribution-ex-card.js
 var DEFAULT_WIDTH2 = 320;
 var DEFAULT_HEIGHT2 = 260;
 var NODE_DEFAULTS = {
@@ -1456,8 +1456,8 @@ var EDITOR_LABELS3 = {
   card_height: "Card height (px, unset = fill the tile)",
   padding: "Padding around contents (px)"
 };
-defineEditor("distribution-ex-card-editor", EDITOR_SCHEMA3, EDITOR_LABELS3);
-var DistributionExCard = class extends LitElement2 {
+defineEditor("power-distribution-ex-card-editor", EDITOR_SCHEMA3, EDITOR_LABELS3);
+var PowerDistributionExCard = class extends LitElement2 {
   static get properties() {
     return {
       hass: { attribute: false },
@@ -1470,17 +1470,17 @@ var DistributionExCard = class extends LitElement2 {
     super();
     this._width = DEFAULT_WIDTH2;
     this._height = DEFAULT_HEIGHT2;
-    this._uid = uniqueId("dxc");
+    this._uid = uniqueId("pdxc");
   }
   static getStubConfig() {
     return {
-      type: "custom:distribution-ex-card",
+      type: "custom:power-distribution-ex-card",
       solar_entity: "sensor.solar_power",
       grid_entity: "sensor.grid_power"
     };
   }
   static getConfigElement() {
-    return document.createElement("distribution-ex-card-editor");
+    return document.createElement("power-distribution-ex-card-editor");
   }
   setConfig(config) {
     const hasList = Array.isArray(config.entities) && config.entities.length > 0;
@@ -1951,11 +1951,11 @@ var DistributionExCard = class extends LitElement2 {
     `;
   }
 };
-if (!customElements.get("distribution-ex-card")) {
-  customElements.define("distribution-ex-card", DistributionExCard);
+if (!customElements.get("power-distribution-ex-card")) {
+  customElements.define("power-distribution-ex-card", PowerDistributionExCard);
   registerCard({
-    type: "distribution-ex-card",
-    name: "Distribution Ex Card",
+    type: "power-distribution-ex-card",
+    name: "Power Distribution Ex Card",
     description: "SVG energy distribution card: solar, grid, battery and home joined by animated power flow lines.",
     preview: true
   });
