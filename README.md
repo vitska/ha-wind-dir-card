@@ -206,7 +206,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
 | `icon_size`          | no       | Icon size in px (default `24`)                                               |
-| `color_normal`       | no       | Value color below any threshold (default: theme primary text color)          |
+| `color_normal`       | no       | Value color below any threshold (default: falls back to `value_color`)       |
 | `color_warning`      | no       | Value color at/above `warning_threshold` (default `#ffa600`)                 |
 | `color_danger`       | no       | Value color at/above `danger_threshold` (default `#ff4136`)                  |
 | `warning_threshold`  | no       | Value at/above which the readout turns `color_warning`                       |
@@ -223,22 +223,117 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `padding`            | no       | Padding around the contents in px (default `0`, fills the tile edge-to-edge) |
 | `refresh_interval`   | no       | How often to refetch history, in seconds (default `300`)                     |
 
-### Example
+### Examples
+
+**Minimal** — everything else is inferred from the entity (label from its
+friendly name, unit from `unit_of_measurement`, icon from the entity, 24h of
+history):
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.outside_temperature
+```
+
+**A grid of sensors.** Each card fills its own tile, and `padding: 0` (the
+default) runs the graphs edge to edge:
+
+```yaml
+type: grid
+columns: 3
+square: false
+cards:
+  - type: custom:sensor-ex-card
+    entity: sensor.outside_temperature
+    name: Temp
+  - type: custom:sensor-ex-card
+    entity: sensor.pressure
+    name: Pressure
+    value_precision: 1
+    graph_type: line
+  - type: custom:sensor-ex-card
+    entity: sensor.living_room_temperature
+    name: TIS1
+```
+
+**Threshold colours** — the value turns amber at/above `warning_threshold` and
+red at/above `danger_threshold`, while the graph keeps its own colour:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.cpu_temperature
+name: CPU
+value_precision: 0
+warning_threshold: 70
+danger_threshold: 85
+color_warning: yellow
+color_danger: red
+```
+
+**Compact readout** — no graph, no icon, and with the label hidden the value
+moves up to fill its slot, so a short card stays balanced:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.humidity
+show_label: false
+show_icon: false
+show_graph: false
+card_height: 70
+value_font_size: 48
+```
+
+**Sparkline only** — hide the readout and let the graph fill the whole tile:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.power_usage
+show_label: false
+show_value: false
+show_icon: false
+graph_height: 1
+card_height: 90
+hours_to_show: 6
+line_color: "#ffa600"
+fill_opacity: 0.45
+```
+
+**Fully styled** — matching the dark look of the Wind Direction Card defaults:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.outside_temperature
+name: Outside
+label_color: "#9e9e9e"
+value_color: white
+unit_color: "#9e9e9e"
+icon_color: white
+label_font_size: 16
+value_font_size: 44
+unit_font_size: 16
+line_color: "#58a6ff"
+fill_color: "#58a6ff"
+fill_opacity: 0.4
+line_width: 2.5
+graph_height: 0.5
+hours_to_show: 48
+y_min: -10
+y_max: 35
+padding: 8
+```
+
+**Alongside the Wind Direction Card**, since both come from this collection:
 
 ```yaml
 type: horizontal-stack
 cards:
+  - type: custom:wind-dir-card
+    wind_direction_entity: sensor.wind_direction
+    wind_direction_avg_entity: sensor.wind_direction_avg
+    wind_speed_entity: sensor.wind_speed
+    wind_gust_entity: sensor.wind_gust
   - type: custom:sensor-ex-card
     entity: sensor.outside_temperature
-  - type: custom:sensor-ex-card
-    entity: sensor.pressure
-    name: Pressure
-    hours_to_show: 48
-    graph_type: line
-    line_color: "#9e9e9e"
-    value_precision: 0
-    warning_threshold: 1020
-    danger_threshold: 1030
+    name: Temp
 ```
 
 ### Notes
