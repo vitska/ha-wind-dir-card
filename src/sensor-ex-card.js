@@ -33,6 +33,25 @@ const EDITOR_SCHEMA = [
   { name: "show_unit", selector: { boolean: {} } },
   { name: "show_icon", selector: { boolean: {} } },
   { name: "show_graph", selector: { boolean: {} } },
+  { name: "show_trend", selector: { boolean: {} } },
+  {
+    name: "trend_hours",
+    selector: { number: { min: 0.1, max: 168, step: 0.1, mode: "box" } },
+  },
+  {
+    name: "trend_threshold",
+    selector: { number: { min: 0, max: 10000, step: 0.1, mode: "box" } },
+  },
+  { name: "trend_color_up", selector: { text: {} } },
+  { name: "trend_color_down", selector: { text: {} } },
+  { name: "trend_color_flat", selector: { text: {} } },
+  {
+    name: "trend_font_size",
+    selector: { number: { min: 6, max: 60, step: 1, mode: "box" } },
+  },
+  { name: "trend_up_symbol", selector: { text: {} } },
+  { name: "trend_down_symbol", selector: { text: {} } },
+  { name: "trend_flat_symbol", selector: { text: {} } },
   { name: "label_color", selector: { text: {} } },
   { name: "value_color", selector: { text: {} } },
   { name: "unit_color", selector: { text: {} } },
@@ -127,6 +146,16 @@ const EDITOR_LABELS = {
   show_unit: "Show unit",
   show_icon: "Show icon",
   show_graph: "Show graph",
+  show_trend: "Show trend arrow",
+  trend_hours: "Trend window (hours of history to compare)",
+  trend_threshold: "Trend deadband (change below this counts as flat)",
+  trend_color_up: "Rising trend color",
+  trend_color_down: "Falling trend color",
+  trend_color_flat: "Flat trend color",
+  trend_font_size: "Trend arrow size (px)",
+  trend_up_symbol: "Rising symbol",
+  trend_down_symbol: "Falling symbol",
+  trend_flat_symbol: "Flat symbol",
   label_color: "Label color (CSS color, optional)",
   value_color: "Value color (CSS color, optional)",
   unit_color: "Unit color (CSS color, optional)",
@@ -223,6 +252,12 @@ class SensorExCard extends LitElement {
       show_unit: true,
       show_icon: true,
       show_graph: true,
+      show_trend: true,
+      trend_hours: 1,
+      trend_threshold: 0,
+      trend_up_symbol: "▲",
+      trend_down_symbol: "▼",
+      trend_flat_symbol: "–",
       label_font_size: 18,
       value_font_size: 40,
       unit_font_size: 14,
@@ -360,6 +395,36 @@ class SensorExCard extends LitElement {
     return downsample(points, MAX_POINTS);
   }
 
+  // Compares the mean of the newer half of the trend window against the older
+  // half. Averaging both halves rather than diffing first/last keeps a noisy
+  // sensor from flipping the arrow on every update. Returns null when there
+  // isn't enough history to say anything, so nothing is drawn.
+  _trend() {
+    const hours = Number(this.config.trend_hours) || 1;
+    const cutoff = Date.now() - hours * 3600 * 1000;
+    const points = this._series().filter((p) => p.t >= cutoff);
+    if (points.length < 2) return null;
+
+    const mid = Math.floor(points.length / 2);
+    const mean = (arr) => arr.reduce((sum, p) => sum + p.v, 0) / arr.length;
+    const delta = mean(points.slice(mid)) - mean(points.slice(0, mid));
+    const deadband = Math.abs(Number(this.config.trend_threshold) || 0);
+    if (Math.abs(delta) <= deadband) return { direction: "flat", delta };
+    return { direction: delta > 0 ? "up" : "down", delta };
+  }
+
+  _trendSymbol(direction) {
+    if (direction === "up") return this.config.trend_up_symbol || "▲";
+    if (direction === "down") return this.config.trend_down_symbol || "▼";
+    return this.config.trend_flat_symbol || "–";
+  }
+
+  _trendColor(direction) {
+    if (direction === "up") return this.config.trend_color_up || "#ff6b6b";
+    if (direction === "down") return this.config.trend_color_down || "#58a6ff";
+    return this.config.trend_color_flat || "";
+  }
+
   _renderGraph(rect) {
     const points = this._series();
     if (points.length < 2) return svg``;
@@ -456,6 +521,8 @@ class SensorExCard extends LitElement {
     const labelFontSize = Number(this.config.label_font_size) || 18;
     const valueFontSize = Number(this.config.value_font_size) || 40;
     const unitFontSize = Number(this.config.unit_font_size) || 14;
+    const trendFontSize = Number(this.config.trend_font_size) || unitFontSize;
+    const trend = this.config.show_trend === false ? null : this._trend();
     const iconSize = Number(this.config.icon_size) || 24;
 
     const width = this._width;
@@ -514,6 +581,13 @@ class SensorExCard extends LitElement {
                         dx="4"
                         style="font-size: ${unitFontSize}px${this.config.unit_color ? `; fill: ${this.config.unit_color}` : ""}"
                       >${unit}</tspan>`}
+                  ${!trend
+                    ? svg``
+                    : svg`<tspan
+                        class="trend"
+                        dx="6"
+                        style="font-size: ${trendFontSize}px${this._trendColor(trend.direction) ? `; fill: ${this._trendColor(trend.direction)}` : ""}"
+                      >${this._trendSymbol(trend.direction)}</tspan>`}
                 </text>
               `}
           </svg>
@@ -571,6 +645,10 @@ class SensorExCard extends LitElement {
         font-weight: 700;
       }
       .unit {
+        fill: var(--secondary-text-color, #9e9e9e);
+        font-weight: 400;
+      }
+      .trend {
         fill: var(--secondary-text-color, #9e9e9e);
         font-weight: 400;
       }

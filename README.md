@@ -200,6 +200,16 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `show_unit`          | no       | Show the unit next to the value (default `true`)                             |
 | `show_icon`          | no       | Show the icon (default `true`)                                               |
 | `show_graph`         | no       | Show the history graph (default `true`)                                      |
+| `show_trend`         | no       | Show the trend arrow next to the value (default `true`)                      |
+| `trend_hours`        | no       | Window of history the trend is measured over, in hours (default `1`)         |
+| `trend_threshold`    | no       | Deadband — a change smaller than this counts as flat (default `0`)           |
+| `trend_color_up`     | no       | Color of the rising arrow (default `#ff6b6b`)                                |
+| `trend_color_down`   | no       | Color of the falling arrow (default `#58a6ff`)                               |
+| `trend_color_flat`   | no       | Color of the flat marker (default: theme secondary text color)               |
+| `trend_font_size`    | no       | Trend arrow size in px (default: same as `unit_font_size`)                   |
+| `trend_up_symbol`    | no       | Symbol for a rising trend (default `▲`)                                      |
+| `trend_down_symbol`  | no       | Symbol for a falling trend (default `▼`)                                     |
+| `trend_flat_symbol`  | no       | Symbol for no significant change (default `–`)                               |
 | `label_color`        | no       | CSS color for the label (default: theme secondary text color)                |
 | `value_color`        | no       | CSS color for the value (default: theme primary text color)                  |
 | `unit_color`         | no       | CSS color for the unit (default: theme secondary text color)                 |
@@ -283,6 +293,29 @@ show_graph: false
 card_height: 70
 value_font_size: 48
 ```
+
+**Trend arrow.** Shown next to the value by default, derived from the same
+history the graph uses. It compares the mean of the newer half of
+`trend_hours` against the older half, so a noisy sensor doesn't flip the arrow
+on every update. Use `trend_threshold` to widen the deadband, and note the
+defaults read as "warmer/cooler" (red up, blue down) — swap them for anything
+where rising is good:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.battery_level
+trend_hours: 6
+trend_threshold: 0.5
+trend_color_up: "#51cf66"
+trend_color_down: "#ff6b6b"
+trend_up_symbol: "↑"
+trend_down_symbol: "↓"
+trend_font_size: 18
+```
+
+Nothing is drawn when there's less than two points of history in the window,
+so an entity the recorder doesn't keep won't show a misleading flat marker.
+Turn it off entirely with `show_trend: false`.
 
 **Controlling the height.** By default the card fills its tile, so in a
 `horizontal-stack` next to a tall card (like the compass) it stretches to match
