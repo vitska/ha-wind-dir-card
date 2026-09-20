@@ -1,9 +1,70 @@
-# Wind Direction Card
+# SVG Cards
 
 [![GitHub release](https://img.shields.io/github/v/release/vitska/ha-wind-dir-card)](https://github.com/vitska/ha-wind-dir-card/releases)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
-A Home Assistant Lovelace custom card that draws an SVG compass showing:
+A collection of Home Assistant Lovelace cards drawn entirely in SVG, so they
+scale cleanly to whatever tile they're given and expose a large set of styling
+options.
+
+| Card | Type | What it does |
+| ---- | ---- | ------------ |
+| [Wind Direction Card](#wind-direction-card) | `custom:wind-dir-card` | Compass dial with wind direction, average-direction sector, speed and gusts |
+
+Registering the single `ha-cards.js` resource makes every card in the
+collection available.
+
+## Install
+
+### Via HACS (custom repository)
+
+1. HACS → Frontend → menu (⋮) → **Custom repositories**.
+2. Add this repository's URL, category **Lovelace**.
+3. Install "SVG Cards", then reload your browser.
+
+### HACS update
+
+1. HACS → Frontend → **SVG Cards** → menu (⋮) → **Redownload**
+   (or use the update notification/badge HACS shows when a new release is
+   available).
+2. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
+   the browser picks up the new resource instead of a cached copy.
+3. If it still looks unchanged, restart Home Assistant or use Settings →
+   General → hamburger menu → **Clear cache and reload**.
+
+### Manual
+
+1. Copy `ha-cards.js`, `shared.js` and every `*-card.js` file into
+   `<config>/www/`, keeping them all in the same directory (the cards import
+   `shared.js` by relative path).
+2. In Settings → Dashboards → Resources, add:
+   - URL: `/local/ha-cards.js`
+   - Type: JavaScript Module
+3. Reload the dashboard.
+
+Open the browser console after loading — the collection logs an `SVG CARDS`
+banner with its version, which is the quickest way to confirm which build is
+actually running.
+
+### Manual update
+
+If you installed manually (not via HACS), pull in new versions like this:
+
+1. Download the latest `.js` files from this repo (or `git pull` if you
+   cloned it) and overwrite the copies in `<config>/www/`.
+2. Bump the cache-busting version so browsers/HA actually fetch the new files
+   instead of cached copies: in Settings → Dashboards → Resources, edit the
+   `/local/ha-cards.js` resource and add/update a `?v=` query string,
+   e.g. `/local/ha-cards.js?v=2` (increment it on every update).
+3. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
+   the browser doesn't serve the old cached module.
+4. If the card still shows old behavior, restart Home Assistant or clear the
+   frontend cache (Settings → General → hamburger menu → **Clear cache and
+   reload**) to force a full reload of custom card resources.
+
+## Wind Direction Card
+
+`custom:wind-dir-card` — an SVG compass showing:
 
 - momentary wind direction (arrow)
 - average wind direction sector (translucent arc overlay)
@@ -20,49 +81,7 @@ Shown here in a dashboard alongside other sensor cards:
 
 ![Wind direction card in a dashboard](screenshot-dashboard.png)
 
-## Install
-
-### Via HACS (custom repository)
-
-1. HACS → Frontend → menu (⋮) → **Custom repositories**.
-2. Add this repository's URL, category **Lovelace**.
-3. Install "Wind Direction Card", then reload your browser.
-
-### HACS update
-
-1. HACS → Frontend → **Wind Direction Card** → menu (⋮) → **Redownload**
-   (or use the update notification/badge HACS shows when a new release is
-   available).
-2. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
-   the browser picks up the new resource instead of a cached copy.
-3. If it still looks unchanged, restart Home Assistant or use Settings →
-   General → hamburger menu → **Clear cache and reload**.
-
-### Manual
-
-1. Copy `wind-dir-card.js` into `<config>/www/wind-dir-card.js`.
-2. In Settings → Dashboards → Resources, add:
-   - URL: `/local/wind-dir-card.js`
-   - Type: JavaScript Module
-3. Reload the dashboard.
-
-### Manual update
-
-If you installed manually (not via HACS), pull in new versions like this:
-
-1. Download the latest `wind-dir-card.js` from this repo (or `git pull` if you
-   cloned it) and overwrite `<config>/www/wind-dir-card.js`.
-2. Bump the cache-busting version so browsers/HA actually fetch the new file
-   instead of a cached copy: in Settings → Dashboards → Resources, edit the
-   `/local/wind-dir-card.js` resource and add/update a `?v=` query string,
-   e.g. `/local/wind-dir-card.js?v=2` (increment it on every update).
-3. Reload the dashboard with a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) so
-   the browser doesn't serve the old cached module.
-4. If the card still shows old behavior, restart Home Assistant or clear the
-   frontend cache (Settings → General → hamburger menu → **Clear cache and
-   reload**) to force a full reload of custom card resources.
-
-## Configuration
+### Configuration
 
 The card has a visual editor: add it via the dashboard's "Add Card" picker
 (search for "Wind Direction Card") or edit an existing card and switch to the
@@ -104,7 +123,7 @@ The card has a visual editor: add it via the dashboard's "Add Card" picker
 | `padding`                     | no       | Padding in px around the dial inside the tile (default `0`, fills the tile edge-to-edge) |
 | `name`                        | no       | Optional card header/title                                                |
 
-## Example
+### Example
 
 Just the entities are required — every styling option above already has a
 sensible default (red sector, white scale/arrow, black arrow shadow, dial
@@ -139,10 +158,25 @@ cards:
     show_gust_unit: true
 ```
 
-## Notes
+### Notes
 
 - If an entity is `unavailable`/`unknown`, the affected part of the dial is
   hidden and the card dims slightly instead of erroring.
 - Colors are pulled from your active HA theme (`--primary-text-color`,
   `--card-background-color`, etc.) with sensible dark-theme fallbacks, so the
   card looks reasonable in both light and dark themes without configuration.
+
+## Repo layout
+
+Plain ES modules, no build step — HACS downloads every `.js` file from the
+repo root into the same directory, so relative imports between them resolve.
+
+| File | Purpose |
+| ---- | ------- |
+| `ha-cards.js` | Collection entry point: imports every card, logs the version banner |
+| `shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
+| `wind-dir-card.js` | Wind Direction Card; also works standalone as its own resource |
+
+To add a card: create `<name>-card.js`, have it register its element and call
+`registerCard(...)` from `shared.js`, then add one `import` line to
+`ha-cards.js`.

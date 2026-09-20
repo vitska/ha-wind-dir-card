@@ -1,6 +1,6 @@
 {
-  "name": "Wind Direction Card",
+  "name": "SVG Cards",
   "render_readme": true,
   "content_in_root": true,
-  "filename": "wind-dir-card.js"
+  "filename": "ha-cards.js"
 }

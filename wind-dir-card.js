@@ -3,7 +3,15 @@ import {
   html,
   css,
   svg,
-} from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
+  defineEditor,
+  getNumber,
+  getState,
+  getUnit,
+  levelColor,
+  registerCard,
+  uniqueId,
+  valueLevel,
+} from "./shared.js";
 
 const CENTER = 100;
 const RING_OUTER = 92;
@@ -43,16 +51,6 @@ function arcPath(startDeg, endDeg, rInner, rOuter) {
 
 function normalizeDeg(deg) {
   return ((deg % 360) + 360) % 360;
-}
-
-function fireEvent(node, type, detail) {
-  node.dispatchEvent(
-    new CustomEvent(type, {
-      detail,
-      bubbles: true,
-      composed: true,
-    })
-  );
 }
 
 const EDITOR_SCHEMA = [
@@ -188,41 +186,7 @@ const EDITOR_LABELS = {
   padding: "Padding around dial (px, 0 = fill tile)",
 };
 
-class WindDirCardEditor extends LitElement {
-  static get properties() {
-    return {
-      hass: { attribute: false },
-      _config: { attribute: false },
-    };
-  }
-
-  setConfig(config) {
-    this._config = { ...config };
-  }
-
-  _computeLabel = (schema) => EDITOR_LABELS[schema.name] || schema.name;
-
-  _valueChanged(ev) {
-    fireEvent(this, "config-changed", { config: ev.detail.value });
-  }
-
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
-    }
-    return html`
-      <ha-form
-        .hass=${this.hass}
-        .data=${this._config}
-        .schema=${EDITOR_SCHEMA}
-        .computeLabel=${this._computeLabel}
-        @value-changed=${this._valueChanged}
-      ></ha-form>
-    `;
-  }
-}
-
-customElements.define("wind-dir-card-editor", WindDirCardEditor);
+defineEditor("wind-dir-card-editor", EDITOR_SCHEMA, EDITOR_LABELS);
 
 class WindDirCard extends LitElement {
   static get properties() {
@@ -292,9 +256,8 @@ class WindDirCard extends LitElement {
 
   constructor() {
     super();
-    const uid = Math.random().toString(36).slice(2);
-    this._gradientId = `wdc-center-gradient-${uid}`;
-    this._shadowId = `wdc-arrow-shadow-${uid}`;
+    this._gradientId = uniqueId("wdc-center-gradient");
+    this._shadowId = uniqueId("wdc-arrow-shadow");
   }
 
   getCardSize() {
@@ -335,42 +298,23 @@ class WindDirCard extends LitElement {
   }
 
   _getState(entityId) {
-    if (!entityId || !this.hass) return undefined;
-    return this.hass.states[entityId];
+    return getState(this.hass, entityId);
   }
 
   _getNumber(entityId) {
-    const state = this._getState(entityId);
-    if (!state) return null;
-    const value = parseFloat(state.state);
-    return Number.isFinite(value) ? value : null;
+    return getNumber(this.hass, entityId);
   }
 
   _getUnit(entityId, fallback) {
-    const state = this._getState(entityId);
-    return (
-      this.config.speed_unit ||
-      (state && state.attributes && state.attributes.unit_of_measurement) ||
-      fallback ||
-      ""
-    );
+    return getUnit(this.hass, entityId, this.config.speed_unit, fallback);
   }
 
   _valueLevel(value, warningThreshold, dangerThreshold) {
-    if (value === null) return "normal";
-    const hasDanger =
-      dangerThreshold !== undefined && dangerThreshold !== null && dangerThreshold !== "";
-    const hasWarning =
-      warningThreshold !== undefined && warningThreshold !== null && warningThreshold !== "";
-    if (hasDanger && value >= Number(dangerThreshold)) return "danger";
-    if (hasWarning && value >= Number(warningThreshold)) return "warning";
-    return "normal";
+    return valueLevel(value, warningThreshold, dangerThreshold);
   }
 
   _levelColor(level) {
-    if (level === "danger") return this.config.color_danger || "#ff4136";
-    if (level === "warning") return this.config.color_warning || "#ffa600";
-    return this.config.color_normal || "";
+    return levelColor(this.config, level);
   }
 
   _renderTicks(scaleColor) {
@@ -719,13 +663,13 @@ class WindDirCard extends LitElement {
   }
 }
 
-customElements.define("wind-dir-card", WindDirCard);
-
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "wind-dir-card",
-  name: "Wind Direction Card",
-  description:
-    "SVG compass showing momentary wind direction, average direction sector, speed and gusts.",
-  preview: true,
-});
+if (!customElements.get("wind-dir-card")) {
+  customElements.define("wind-dir-card", WindDirCard);
+  registerCard({
+    type: "wind-dir-card",
+    name: "Wind Direction Card",
+    description:
+      "SVG compass showing momentary wind direction, average direction sector, speed and gusts.",
+    preview: true,
+  });
+}
