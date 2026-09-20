@@ -35,13 +35,15 @@ collection available.
 
 ### Manual
 
-1. Copy `ha-cards.js`, `shared.js` and every `*-card.js` file into
-   `<config>/www/`, keeping them all in the same directory (the cards import
-   `shared.js` by relative path).
+1. Copy `ha-cards.js` from the repo root into `<config>/www/ha-cards.js`.
+   That one file contains every card — it has no other dependencies.
 2. In Settings → Dashboards → Resources, add:
    - URL: `/local/ha-cards.js`
    - Type: JavaScript Module
 3. Reload the dashboard.
+
+If you only want a single card, `wind-dir-card.js` and `sensor-ex-card.js`
+are also self-contained and can be used instead.
 
 Open the browser console after loading — the collection logs an `SVG CARDS`
 banner with its version, which is the quickest way to confirm which build is
@@ -51,8 +53,8 @@ actually running.
 
 If you installed manually (not via HACS), pull in new versions like this:
 
-1. Download the latest `.js` files from this repo (or `git pull` if you
-   cloned it) and overwrite the copies in `<config>/www/`.
+1. Download the latest `ha-cards.js` from this repo (or `git pull` if you
+   cloned it) and overwrite the copy in `<config>/www/`.
 2. Bump the cache-busting version so browsers/HA actually fetch the new files
    instead of cached copies: in Settings → Dashboards → Resources, edit the
    `/local/ha-cards.js` resource and add/update a `?v=` query string,
@@ -348,16 +350,40 @@ cards:
 
 ## Repo layout
 
-Plain ES modules, no build step — HACS downloads every `.js` file from the
-repo root into the same directory, so relative imports between them resolve.
+Sources live in `src/` as plain ES modules. `build.sh` bundles them into
+**self-contained** files at the repo root — those are what ships.
 
-| File | Purpose |
-| ---- | ------- |
-| `ha-cards.js` | Collection entry point: imports every card, logs the version banner |
-| `shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
-| `wind-dir-card.js` | Wind Direction Card; also works standalone as its own resource |
-| `sensor-ex-card.js` | Sensor Ex Card |
+| Source | Purpose |
+| ------ | ------- |
+| `src/ha-cards.js` | Collection entry point: imports every card, logs the version banner |
+| `src/shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
+| `src/wind-dir-card.js` | Wind Direction Card |
+| `src/sensor-ex-card.js` | Sensor Ex Card |
 
-To add a card: create `<name>-card.js`, have it register its element and call
-`registerCard(...)` from `shared.js`, then add one `import` line to
-`ha-cards.js`.
+| Built artifact | Contains |
+| -------------- | -------- |
+| `ha-cards.js` | Every card — the file to install |
+| `wind-dir-card.js` | Just the compass, standalone |
+| `sensor-ex-card.js` | Just the sensor card, standalone |
+
+Each artifact bundles the shared code, so its only remaining import is lit from
+the CDN. That matters because HACS copies `.js` files into
+`www/community/<repo>/` and a card that did `import "./shared.js"` at runtime
+would fail completely if that one file didn't arrive — taking every card in it
+down with it. Loading more than one artifact is harmless: registration is
+guarded, so nothing double-registers or gets listed twice in the card picker.
+
+### Building
+
+```bash
+./build.sh
+```
+
+Needs node; esbuild is fetched on demand via `npx`, so there is nothing to
+install and no `node_modules` in the repo. Rerun it after editing anything in
+`src/` and commit the regenerated root files.
+
+To add a card: create `src/<name>-card.js`, have it register its element and
+call `registerCard(...)` from `shared.js`, add one `import` line to
+`src/ha-cards.js`, then add it to the `ENTRIES` list in `build.sh` if it should
+also ship standalone.

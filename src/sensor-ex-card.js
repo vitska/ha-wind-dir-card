@@ -1,121 +1,32 @@
-// Generated from src/sensor-ex-card.js by build.sh - do not edit directly.
-
-// src/shared.js
 import {
   LitElement,
-  html
-} from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-import {
-  LitElement as LitElement2,
-  html as html2,
+  html,
   css,
-  svg
-} from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-function fireEvent(node, type, detail) {
-  node.dispatchEvent(
-    new CustomEvent(type, {
-      detail,
-      bubbles: true,
-      composed: true
-    })
-  );
-}
-function uniqueId(prefix) {
-  return `${prefix}-${Math.random().toString(36).slice(2)}`;
-}
-function registerCard(entry) {
-  window.customCards = window.customCards || [];
-  window.customCards.push(entry);
-}
-function getState(hass, entityId) {
-  if (!entityId || !hass) return void 0;
-  return hass.states[entityId];
-}
-function getNumber(hass, entityId) {
-  const state = getState(hass, entityId);
-  if (!state) return null;
-  const value = parseFloat(state.state);
-  return Number.isFinite(value) ? value : null;
-}
-function getUnit(hass, entityId, override, fallback) {
-  const state = getState(hass, entityId);
-  return override || state && state.attributes && state.attributes.unit_of_measurement || fallback || "";
-}
-function valueLevel(value, warningThreshold, dangerThreshold) {
-  if (value === null) return "normal";
-  const hasDanger = dangerThreshold !== void 0 && dangerThreshold !== null && dangerThreshold !== "";
-  const hasWarning = warningThreshold !== void 0 && warningThreshold !== null && warningThreshold !== "";
-  if (hasDanger && value >= Number(dangerThreshold)) return "danger";
-  if (hasWarning && value >= Number(warningThreshold)) return "warning";
-  return "normal";
-}
-function levelColor(config, level) {
-  if (level === "danger") return config.color_danger || "#ff4136";
-  if (level === "warning") return config.color_warning || "#ffa600";
-  return config.color_normal || "";
-}
-var BaseCardEditor = class extends LitElement {
-  static get properties() {
-    return {
-      hass: { attribute: false },
-      _config: { attribute: false }
-    };
-  }
-  static get schema() {
-    return [];
-  }
-  static get labels() {
-    return {};
-  }
-  setConfig(config) {
-    this._config = { ...config };
-  }
-  _computeLabel = (schema) => this.constructor.labels[schema.name] || schema.name;
-  _valueChanged(ev) {
-    fireEvent(this, "config-changed", { config: ev.detail.value });
-  }
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
-    }
-    return html`
-      <ha-form
-        .hass=${this.hass}
-        .data=${this._config}
-        .schema=${this.constructor.schema}
-        .computeLabel=${this._computeLabel}
-        @value-changed=${this._valueChanged}
-      ></ha-form>
-    `;
-  }
-};
-function defineEditor(tag, schema, labels) {
-  if (customElements.get(tag)) return;
-  customElements.define(
-    tag,
-    class extends BaseCardEditor {
-      static get schema() {
-        return schema;
-      }
-      static get labels() {
-        return labels;
-      }
-    }
-  );
-}
+  svg,
+  defineEditor,
+  getNumber,
+  getState,
+  getUnit,
+  levelColor,
+  registerCard,
+  uniqueId,
+  valueLevel,
+} from "./shared.js";
 
-// src/sensor-ex-card.js
-var DEFAULT_WIDTH = 300;
-var DEFAULT_HEIGHT = 120;
-var MAX_POINTS = 100;
-var EDITOR_SCHEMA = [
+const DEFAULT_WIDTH = 300;
+const DEFAULT_HEIGHT = 120;
+// Sparkline detail beyond this is invisible, and recorder can return thousands
+// of points for a long window.
+const MAX_POINTS = 100;
+
+const EDITOR_SCHEMA = [
   { name: "entity", selector: { entity: {} } },
   { name: "name", selector: { text: {} } },
   { name: "icon", selector: { icon: {} } },
   { name: "unit", selector: { text: {} } },
   {
     name: "value_precision",
-    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } }
+    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
   },
   { name: "show_label", selector: { boolean: {} } },
   { name: "show_value", selector: { boolean: {} } },
@@ -128,34 +39,34 @@ var EDITOR_SCHEMA = [
   { name: "icon_color", selector: { text: {} } },
   {
     name: "label_font_size",
-    selector: { number: { min: 6, max: 60, step: 1, mode: "box" } }
+    selector: { number: { min: 6, max: 60, step: 1, mode: "box" } },
   },
   {
     name: "value_font_size",
-    selector: { number: { min: 8, max: 120, step: 1, mode: "box" } }
+    selector: { number: { min: 8, max: 120, step: 1, mode: "box" } },
   },
   {
     name: "unit_font_size",
-    selector: { number: { min: 6, max: 60, step: 1, mode: "box" } }
+    selector: { number: { min: 6, max: 60, step: 1, mode: "box" } },
   },
   {
     name: "icon_size",
-    selector: { number: { min: 8, max: 96, step: 1, mode: "box" } }
+    selector: { number: { min: 8, max: 96, step: 1, mode: "box" } },
   },
   { name: "color_normal", selector: { text: {} } },
   { name: "color_warning", selector: { text: {} } },
   { name: "color_danger", selector: { text: {} } },
   {
     name: "warning_threshold",
-    selector: { number: { min: -1e3, max: 1e4, step: 0.1, mode: "box" } }
+    selector: { number: { min: -1000, max: 10000, step: 0.1, mode: "box" } },
   },
   {
     name: "danger_threshold",
-    selector: { number: { min: -1e3, max: 1e4, step: 0.1, mode: "box" } }
+    selector: { number: { min: -1000, max: 10000, step: 0.1, mode: "box" } },
   },
   {
     name: "hours_to_show",
-    selector: { number: { min: 1, max: 720, step: 1, mode: "box" } }
+    selector: { number: { min: 1, max: 720, step: 1, mode: "box" } },
   },
   {
     name: "graph_type",
@@ -164,47 +75,48 @@ var EDITOR_SCHEMA = [
         mode: "dropdown",
         options: [
           { value: "area", label: "Area (line + fill)" },
-          { value: "line", label: "Line only" }
-        ]
-      }
-    }
+          { value: "line", label: "Line only" },
+        ],
+      },
+    },
   },
   { name: "line_color", selector: { text: {} } },
   {
     name: "line_width",
-    selector: { number: { min: 0.5, max: 10, step: 0.5, mode: "box" } }
+    selector: { number: { min: 0.5, max: 10, step: 0.5, mode: "box" } },
   },
   { name: "fill_color", selector: { text: {} } },
   {
     name: "fill_opacity",
-    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } }
+    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
   },
   {
     name: "graph_height",
-    selector: { number: { min: 0.1, max: 1, step: 0.05, mode: "box" } }
+    selector: { number: { min: 0.1, max: 1, step: 0.05, mode: "box" } },
   },
   {
     name: "y_min",
-    selector: { number: { min: -1e4, max: 1e4, step: 0.1, mode: "box" } }
+    selector: { number: { min: -10000, max: 10000, step: 0.1, mode: "box" } },
   },
   {
     name: "y_max",
-    selector: { number: { min: -1e4, max: 1e4, step: 0.1, mode: "box" } }
+    selector: { number: { min: -10000, max: 10000, step: 0.1, mode: "box" } },
   },
   {
     name: "card_height",
-    selector: { number: { min: 40, max: 600, step: 1, mode: "box" } }
+    selector: { number: { min: 40, max: 600, step: 1, mode: "box" } },
   },
   {
     name: "padding",
-    selector: { number: { min: 0, max: 64, step: 1, mode: "box" } }
+    selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
   },
   {
     name: "refresh_interval",
-    selector: { number: { min: 10, max: 3600, step: 10, mode: "box" } }
-  }
+    selector: { number: { min: 10, max: 3600, step: 10, mode: "box" } },
+  },
 ];
-var EDITOR_LABELS = {
+
+const EDITOR_LABELS = {
   entity: "Entity",
   name: "Label (defaults to the entity name)",
   icon: "Icon (defaults to the entity icon)",
@@ -239,11 +151,15 @@ var EDITOR_LABELS = {
   y_max: "Y axis maximum (auto if unset)",
   card_height: "Minimum card height (px)",
   padding: "Padding around contents (px, 0 = fill tile)",
-  refresh_interval: "History refresh interval (seconds)"
+  refresh_interval: "History refresh interval (seconds)",
 };
+
 defineEditor("sensor-ex-card-editor", EDITOR_SCHEMA, EDITOR_LABELS);
+
 function downsample(points, limit) {
   if (points.length <= limit) return points;
+  // Average within buckets rather than striding, so spikes don't disappear
+  // purely based on where the stride lands.
   const bucketSize = points.length / limit;
   const out = [];
   for (let i = 0; i < limit; i += 1) {
@@ -260,16 +176,18 @@ function downsample(points, limit) {
   }
   return out;
 }
-var SensorExCard = class extends LitElement2 {
+
+class SensorExCard extends LitElement {
   static get properties() {
     return {
       hass: { attribute: false },
       config: { attribute: false },
       _history: { attribute: false },
       _width: { attribute: false },
-      _height: { attribute: false }
+      _height: { attribute: false },
     };
   }
+
   constructor() {
     super();
     this._history = [];
@@ -277,16 +195,23 @@ var SensorExCard = class extends LitElement2 {
     this._height = DEFAULT_HEIGHT;
     this._gradientId = uniqueId("sxc-graph-fill");
   }
+
   static getStubConfig(hass) {
-    const states = hass && hass.states || {};
-    const entity = Object.keys(states).find(
-      (id) => id.startsWith("sensor.") && states[id].attributes && states[id].attributes.unit_of_measurement
-    ) || "sensor.temperature";
+    const states = (hass && hass.states) || {};
+    const entity =
+      Object.keys(states).find(
+        (id) =>
+          id.startsWith("sensor.") &&
+          states[id].attributes &&
+          states[id].attributes.unit_of_measurement
+      ) || "sensor.temperature";
     return { type: "custom:sensor-ex-card", entity };
   }
+
   static getConfigElement() {
     return document.createElement("sensor-ex-card-editor");
   }
+
   setConfig(config) {
     if (!config.entity) {
       throw new Error("entity is required");
@@ -310,12 +235,14 @@ var SensorExCard = class extends LitElement2 {
       card_height: 120,
       refresh_interval: 300,
       padding: 0,
-      ...config
+      ...config,
     };
   }
+
   getCardSize() {
     return 3;
   }
+
   firstUpdated() {
     const root = this.renderRoot.querySelector(".root");
     if (root) {
@@ -325,6 +252,7 @@ var SensorExCard = class extends LitElement2 {
     }
     this._startRefresh();
   }
+
   connectedCallback() {
     super.connectedCallback();
     if (this.hasUpdated) {
@@ -332,22 +260,27 @@ var SensorExCard = class extends LitElement2 {
       this._fetchHistory();
     }
   }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     this._stopRefresh();
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
-      this._resizeObserver = void 0;
+      this._resizeObserver = undefined;
     }
   }
+
   updated() {
     if (!this.hass || !this.config) return;
+    // Refetch only when the query itself changes, otherwise every state update
+    // would trigger a round trip.
     const key = `${this.config.entity}|${this.config.hours_to_show}`;
     if (key !== this._fetchKey) {
       this._fetchKey = key;
       this._fetchHistory();
     }
   }
+
   _measure() {
     const root = this.renderRoot.querySelector(".root");
     if (!root) return;
@@ -357,23 +290,26 @@ var SensorExCard = class extends LitElement2 {
       this._height = rect.height;
     }
   }
+
   _startRefresh() {
     this._stopRefresh();
     const seconds = Number(this.config && this.config.refresh_interval) || 300;
-    this._refreshTimer = setInterval(() => this._fetchHistory(), seconds * 1e3);
+    this._refreshTimer = setInterval(() => this._fetchHistory(), seconds * 1000);
   }
+
   _stopRefresh() {
     if (this._refreshTimer) {
       clearInterval(this._refreshTimer);
-      this._refreshTimer = void 0;
+      this._refreshTimer = undefined;
     }
   }
+
   async _fetchHistory() {
     const entityId = this.config && this.config.entity;
     if (!this.hass || !entityId || typeof this.hass.callWS !== "function") return;
     const hours = Number(this.config.hours_to_show) || 24;
-    const end = /* @__PURE__ */ new Date();
-    const start = new Date(end.getTime() - hours * 3600 * 1e3);
+    const end = new Date();
+    const start = new Date(end.getTime() - hours * 3600 * 1000);
     try {
       const result = await this.hass.callWS({
         type: "history/history_during_period",
@@ -381,18 +317,24 @@ var SensorExCard = class extends LitElement2 {
         end_time: end.toISOString(),
         entity_ids: [entityId],
         minimal_response: true,
-        no_attributes: true
+        no_attributes: true,
       });
-      const raw = result && result[entityId] || [];
-      this._history = raw.map((point) => ({
-        // Compressed responses use lu/s; older/full ones last_changed/state.
-        t: typeof point.lu === "number" ? point.lu * 1e3 : Date.parse(point.last_updated || point.last_changed),
-        v: parseFloat(point.s !== void 0 ? point.s : point.state)
-      })).filter((point) => Number.isFinite(point.t) && Number.isFinite(point.v));
+      const raw = (result && result[entityId]) || [];
+      this._history = raw
+        .map((point) => ({
+          // Compressed responses use lu/s; older/full ones last_changed/state.
+          t:
+            typeof point.lu === "number"
+              ? point.lu * 1000
+              : Date.parse(point.last_updated || point.last_changed),
+          v: parseFloat(point.s !== undefined ? point.s : point.state),
+        }))
+        .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.v));
     } catch (err) {
       this._history = [];
     }
   }
+
   // History stops at the last recorded change, so append live state to keep the
   // sparkline running to "now".
   _series() {
@@ -401,40 +343,56 @@ var SensorExCard = class extends LitElement2 {
     if (current !== null) {
       const now = Date.now();
       const last = points[points.length - 1];
-      if (!last || now - last.t > 1e3) {
+      if (!last || now - last.t > 1000) {
         points.push({ t: now, v: current });
       }
     }
     return downsample(points, MAX_POINTS);
   }
+
   _renderGraph(rect) {
     const points = this._series();
     if (points.length < 2) return svg``;
+
     const values = points.map((p) => p.v);
     const configMin = Number(this.config.y_min);
     const configMax = Number(this.config.y_max);
     let min = Number.isFinite(configMin) && this.config.y_min !== "" ? configMin : Math.min(...values);
     let max = Number.isFinite(configMax) && this.config.y_max !== "" ? configMax : Math.max(...values);
     if (max === min) {
+      // Flat series: centre it instead of dividing by zero.
       min -= 1;
       max += 1;
     }
+
     const tMin = points[0].t;
     const tMax = points[points.length - 1].t;
     const tSpan = tMax - tMin || 1;
     const lineWidth = Number(this.config.line_width) || 2;
+    // Inset by half the stroke so the line isn't clipped at the edges.
     const inset = lineWidth / 2;
     const top = rect.top + inset;
     const bottom = rect.bottom - inset;
+
     const coords = points.map((p) => ({
-      x: rect.left + (p.t - tMin) / tSpan * (rect.right - rect.left),
-      y: bottom - (p.v - min) / (max - min) * (bottom - top)
+      x: rect.left + ((p.t - tMin) / tSpan) * (rect.right - rect.left),
+      y: bottom - ((p.v - min) / (max - min)) * (bottom - top),
     }));
-    const line = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(2)} ${c.y.toFixed(2)}`).join(" ");
+
+    const line = coords
+      .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(2)} ${c.y.toFixed(2)}`)
+      .join(" ");
+
     const lineColor = this.config.line_color || "";
     const fillColor = this.config.fill_color || this.config.line_color || "";
-    const fillOpacity = Number.isFinite(Number(this.config.fill_opacity)) ? Number(this.config.fill_opacity) : 0.3;
-    const area = this.config.graph_type === "line" ? svg`` : svg`
+    const fillOpacity = Number.isFinite(Number(this.config.fill_opacity))
+      ? Number(this.config.fill_opacity)
+      : 0.3;
+
+    const area =
+      this.config.graph_type === "line"
+        ? svg``
+        : svg`
             <defs>
               <linearGradient id=${this._gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color=${fillColor || "currentColor"} stop-opacity=${fillOpacity} />
@@ -448,6 +406,7 @@ var SensorExCard = class extends LitElement2 {
               style=${fillColor ? `color: ${fillColor}` : ""}
             />
           `;
+
     return svg`
       ${area}
       <path
@@ -457,32 +416,44 @@ var SensorExCard = class extends LitElement2 {
       />
     `;
   }
+
   render() {
     if (!this.config || !this.hass) {
-      return html2``;
+      return html``;
     }
+
     const stateObj = getState(this.hass, this.config.entity);
     const value = getNumber(this.hass, this.config.entity);
     const unit = getUnit(this.hass, this.config.entity, this.config.unit);
     const precision = Math.max(0, Number(this.config.value_precision) || 0);
-    const padding = Number.isFinite(Number(this.config.padding)) ? Number(this.config.padding) : 0;
-    const label = this.config.name || stateObj && stateObj.attributes && stateObj.attributes.friendly_name || this.config.entity;
+    const padding = Number.isFinite(Number(this.config.padding))
+      ? Number(this.config.padding)
+      : 0;
+
+    const label =
+      this.config.name ||
+      (stateObj && stateObj.attributes && stateObj.attributes.friendly_name) ||
+      this.config.entity;
+
     const level = valueLevel(
       value,
       this.config.warning_threshold,
       this.config.danger_threshold
     );
     const valueColor = levelColor(this.config, level) || this.config.value_color || "";
+
     const labelFontSize = Number(this.config.label_font_size) || 18;
     const valueFontSize = Number(this.config.value_font_size) || 40;
     const unitFontSize = Number(this.config.unit_font_size) || 14;
     const iconSize = Number(this.config.icon_size) || 24;
+
     const width = this._width;
     const height = this._height;
     const left = padding;
     const right = width - padding;
     const top = padding;
     const bottom = height - padding;
+
     const graphFraction = Math.min(
       1,
       Math.max(0.1, Number(this.config.graph_height) || 0.45)
@@ -492,18 +463,25 @@ var SensorExCard = class extends LitElement2 {
       left,
       right,
       top: bottom - (bottom - top) * graphFraction,
-      bottom
+      bottom,
     };
+
+    // <text y> is the baseline; ascent is roughly 0.8em, so offset by that to
+    // sit the glyph tops at the intended y. With the label hidden the value
+    // takes over its slot rather than leaving a gap.
     const showLabel = this.config.show_label !== false;
     const labelY = top + labelFontSize * 0.8;
     const valueTop = showLabel ? top + labelFontSize * 1.1 : top;
     const valueY = valueTop + valueFontSize * 0.8;
-    return html2`
+
+    return html`
       <ha-card>
         <div class="root" style="min-height: ${Number(this.config.card_height) || 120}px">
           <svg viewBox="0 0 ${width} ${height}" width=${width} height=${height}>
             ${showGraph ? this._renderGraph(graphRect) : svg``}
-            ${!showLabel ? svg`` : svg`
+            ${!showLabel
+              ? svg``
+              : svg`
                 <text
                   class="label"
                   x=${left}
@@ -511,12 +489,16 @@ var SensorExCard = class extends LitElement2 {
                   style="font-size: ${labelFontSize}px${this.config.label_color ? `; fill: ${this.config.label_color}` : ""}"
                 >${label}</text>
               `}
-            ${this.config.show_value === false ? svg`` : svg`
+            ${this.config.show_value === false
+              ? svg``
+              : svg`
                 <text class="value" x=${left} y=${valueY}>
                   <tspan
                     style="font-size: ${valueFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}"
                   >${value !== null ? value.toFixed(precision) : "--"}</tspan>
-                  ${this.config.show_unit === false || !unit ? svg`` : svg`<tspan
+                  ${this.config.show_unit === false || !unit
+                    ? svg``
+                    : svg`<tspan
                         class="unit"
                         dx="4"
                         style="font-size: ${unitFontSize}px${this.config.unit_color ? `; fill: ${this.config.unit_color}` : ""}"
@@ -524,12 +506,16 @@ var SensorExCard = class extends LitElement2 {
                 </text>
               `}
           </svg>
-          ${this.config.show_icon === false ? "" : html2`
+          ${this.config.show_icon === false
+            ? ""
+            : html`
                 <div
                   class="icon"
                   style="top: ${top}px; right: ${padding}px; --mdc-icon-size: ${iconSize}px${this.config.icon_color ? `; color: ${this.config.icon_color}` : ""}"
                 >
-                  ${this.config.icon ? html2`<ha-icon .icon=${this.config.icon}></ha-icon>` : html2`<ha-state-icon
+                  ${this.config.icon
+                    ? html`<ha-icon .icon=${this.config.icon}></ha-icon>`
+                    : html`<ha-state-icon
                         .hass=${this.hass}
                         .stateObj=${stateObj}
                       ></ha-state-icon>`}
@@ -539,6 +525,7 @@ var SensorExCard = class extends LitElement2 {
       </ha-card>
     `;
   }
+
   static get styles() {
     return css`
       :host {
@@ -588,13 +575,15 @@ var SensorExCard = class extends LitElement2 {
       }
     `;
   }
-};
+}
+
 if (!customElements.get("sensor-ex-card")) {
   customElements.define("sensor-ex-card", SensorExCard);
   registerCard({
     type: "sensor-ex-card",
     name: "Sensor Ex Card",
-    description: "SVG sensor card with label, value, unit and a recorder history graph, with extensive styling options.",
-    preview: true
+    description:
+      "SVG sensor card with label, value, unit and a recorder history graph, with extensive styling options.",
+    preview: true,
   });
 }

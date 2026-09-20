@@ -1,130 +1,41 @@
-// Generated from src/wind-dir-card.js by build.sh - do not edit directly.
-
-// src/shared.js
 import {
   LitElement,
-  html
-} from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-import {
-  LitElement as LitElement2,
-  html as html2,
+  html,
   css,
-  svg
-} from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-function fireEvent(node, type, detail) {
-  node.dispatchEvent(
-    new CustomEvent(type, {
-      detail,
-      bubbles: true,
-      composed: true
-    })
-  );
-}
-function uniqueId(prefix) {
-  return `${prefix}-${Math.random().toString(36).slice(2)}`;
-}
-function registerCard(entry) {
-  window.customCards = window.customCards || [];
-  window.customCards.push(entry);
-}
-function getState(hass, entityId) {
-  if (!entityId || !hass) return void 0;
-  return hass.states[entityId];
-}
-function getNumber(hass, entityId) {
-  const state = getState(hass, entityId);
-  if (!state) return null;
-  const value = parseFloat(state.state);
-  return Number.isFinite(value) ? value : null;
-}
-function getUnit(hass, entityId, override, fallback) {
-  const state = getState(hass, entityId);
-  return override || state && state.attributes && state.attributes.unit_of_measurement || fallback || "";
-}
-function valueLevel(value, warningThreshold, dangerThreshold) {
-  if (value === null) return "normal";
-  const hasDanger = dangerThreshold !== void 0 && dangerThreshold !== null && dangerThreshold !== "";
-  const hasWarning = warningThreshold !== void 0 && warningThreshold !== null && warningThreshold !== "";
-  if (hasDanger && value >= Number(dangerThreshold)) return "danger";
-  if (hasWarning && value >= Number(warningThreshold)) return "warning";
-  return "normal";
-}
-function levelColor(config, level) {
-  if (level === "danger") return config.color_danger || "#ff4136";
-  if (level === "warning") return config.color_warning || "#ffa600";
-  return config.color_normal || "";
-}
-var BaseCardEditor = class extends LitElement {
-  static get properties() {
-    return {
-      hass: { attribute: false },
-      _config: { attribute: false }
-    };
-  }
-  static get schema() {
-    return [];
-  }
-  static get labels() {
-    return {};
-  }
-  setConfig(config) {
-    this._config = { ...config };
-  }
-  _computeLabel = (schema) => this.constructor.labels[schema.name] || schema.name;
-  _valueChanged(ev) {
-    fireEvent(this, "config-changed", { config: ev.detail.value });
-  }
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
-    }
-    return html`
-      <ha-form
-        .hass=${this.hass}
-        .data=${this._config}
-        .schema=${this.constructor.schema}
-        .computeLabel=${this._computeLabel}
-        @value-changed=${this._valueChanged}
-      ></ha-form>
-    `;
-  }
-};
-function defineEditor(tag, schema, labels) {
-  if (customElements.get(tag)) return;
-  customElements.define(
-    tag,
-    class extends BaseCardEditor {
-      static get schema() {
-        return schema;
-      }
-      static get labels() {
-        return labels;
-      }
-    }
-  );
+  svg,
+  defineEditor,
+  getNumber,
+  getState,
+  getUnit,
+  levelColor,
+  registerCard,
+  uniqueId,
+  valueLevel,
+} from "./shared.js";
+
+const CENTER = 100;
+const RING_OUTER = 92;
+const TICK_MINOR_INNER = 82;
+const TICK_MAJOR_INNER = 72;
+const CARDINAL_LABEL_R = 62;
+const SECTOR_INNER = 58;
+const SECTOR_OUTER = 78;
+const CENTER_CIRCLE_R = 54;
+const ARROW_HEAD_R = 80;
+const ARROW_TAIL_R = 32;
+const ARROW_HEAD_SIZE = 9;
+
+function toRad(deg) {
+  return ((deg - 90) * Math.PI) / 180;
 }
 
-// src/wind-dir-card.js
-var CENTER = 100;
-var RING_OUTER = 92;
-var TICK_MINOR_INNER = 82;
-var TICK_MAJOR_INNER = 72;
-var CARDINAL_LABEL_R = 62;
-var SECTOR_INNER = 58;
-var SECTOR_OUTER = 78;
-var CENTER_CIRCLE_R = 54;
-var ARROW_HEAD_R = 80;
-var ARROW_TAIL_R = 32;
-var ARROW_HEAD_SIZE = 9;
-function toRad(deg) {
-  return (deg - 90) * Math.PI / 180;
-}
 function polar(deg, r) {
   const rad = toRad(deg);
   return [CENTER + r * Math.cos(rad), CENTER + r * Math.sin(rad)];
 }
+
 function arcPath(startDeg, endDeg, rInner, rOuter) {
-  const large = (endDeg - startDeg + 360) % 360 > 180 ? 1 : 0;
+  const large = ((endDeg - startDeg + 360) % 360) > 180 ? 1 : 0;
   const [x1, y1] = polar(startDeg, rOuter);
   const [x2, y2] = polar(endDeg, rOuter);
   const [x3, y3] = polar(endDeg, rInner);
@@ -134,13 +45,15 @@ function arcPath(startDeg, endDeg, rInner, rOuter) {
     `A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2}`,
     `L ${x3} ${y3}`,
     `A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4}`,
-    "Z"
+    "Z",
   ].join(" ");
 }
+
 function normalizeDeg(deg) {
-  return (deg % 360 + 360) % 360;
+  return ((deg % 360) + 360) % 360;
 }
-var EDITOR_SCHEMA = [
+
+const EDITOR_SCHEMA = [
   { name: "name", selector: { text: {} } },
   { name: "wind_direction_entity", selector: { entity: {} } },
   { name: "wind_speed_entity", selector: { entity: {} } },
@@ -148,48 +61,48 @@ var EDITOR_SCHEMA = [
   { name: "wind_direction_avg_entity", selector: { entity: {} } },
   {
     name: "sector_width",
-    selector: { number: { min: 0, max: 180, step: 1, mode: "box" } }
+    selector: { number: { min: 0, max: 180, step: 1, mode: "box" } },
   },
   { name: "sector_color", selector: { text: {} } },
   {
     name: "sector_opacity",
-    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } }
+    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
   },
   { name: "scale_color", selector: { text: {} } },
   { name: "arrow_color", selector: { text: {} } },
   { name: "speed_unit", selector: { text: {} } },
   {
     name: "show_speed_unit",
-    selector: { boolean: {} }
+    selector: { boolean: {} },
   },
   {
     name: "speed_precision",
-    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } }
+    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
   },
   {
     name: "gust_precision",
-    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } }
+    selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
   },
   {
     name: "speed_font_size",
-    selector: { number: { min: 8, max: 60, step: 1, mode: "box" } }
+    selector: { number: { min: 8, max: 60, step: 1, mode: "box" } },
   },
   {
     name: "gust_font_size",
-    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } }
+    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
   },
   { name: "center_bg_color", selector: { text: {} } },
   {
     name: "center_bg_opacity",
-    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } }
+    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
   },
   {
     name: "show_gust_unit",
-    selector: { boolean: {} }
+    selector: { boolean: {} },
   },
   {
     name: "arrow_size",
-    selector: { number: { min: 0.5, max: 1.5, step: 0.05, mode: "box" } }
+    selector: { number: { min: 0.5, max: 1.5, step: 0.05, mode: "box" } },
   },
   {
     name: "arrow_type",
@@ -199,45 +112,46 @@ var EDITOR_SCHEMA = [
         options: [
           { value: "arrow", label: "Arrow (shaft + head + tail circle)" },
           { value: "needle", label: "Needle (diamond)" },
-          { value: "line", label: "Line (shaft + small head)" }
-        ]
-      }
-    }
+          { value: "line", label: "Line (shaft + small head)" },
+        ],
+      },
+    },
   },
   {
     name: "arrow_shadow",
-    selector: { boolean: {} }
+    selector: { boolean: {} },
   },
   { name: "arrow_shadow_color", selector: { text: {} } },
   {
     name: "arrow_shadow_offset",
-    selector: { number: { min: -10, max: 10, step: 0.5, mode: "box" } }
+    selector: { number: { min: -10, max: 10, step: 0.5, mode: "box" } },
   },
   { name: "color_normal", selector: { text: {} } },
   { name: "color_warning", selector: { text: {} } },
   { name: "color_danger", selector: { text: {} } },
   {
     name: "speed_warning_threshold",
-    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } }
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
   },
   {
     name: "speed_danger_threshold",
-    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } }
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
   },
   {
     name: "gust_warning_threshold",
-    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } }
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
   },
   {
     name: "gust_danger_threshold",
-    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } }
+    selector: { number: { min: 0, max: 500, step: 0.1, mode: "box" } },
   },
   {
     name: "padding",
-    selector: { number: { min: 0, max: 64, step: 1, mode: "box" } }
-  }
+    selector: { number: { min: 0, max: 64, step: 1, mode: "box" } },
+  },
 ];
-var EDITOR_LABELS = {
+
+const EDITOR_LABELS = {
   name: "Card name",
   wind_direction_entity: "Wind direction entity",
   wind_speed_entity: "Wind speed entity",
@@ -269,29 +183,39 @@ var EDITOR_LABELS = {
   speed_danger_threshold: "Speed danger threshold (optional)",
   gust_warning_threshold: "Gust warning threshold (optional)",
   gust_danger_threshold: "Gust danger threshold (optional)",
-  padding: "Padding around dial (px, 0 = fill tile)"
+  padding: "Padding around dial (px, 0 = fill tile)",
 };
+
 defineEditor("wind-dir-card-editor", EDITOR_SCHEMA, EDITOR_LABELS);
-var WindDirCard = class extends LitElement2 {
+
+class WindDirCard extends LitElement {
   static get properties() {
     return {
       hass: { attribute: false },
-      config: { attribute: false }
+      config: { attribute: false },
     };
   }
+
   static getStubConfig(hass) {
-    const states = hass && hass.states || {};
+    const states = (hass && hass.states) || {};
     const ids = Object.keys(states);
-    const find = (needles) => ids.find((id) => needles.every((n) => id.toLowerCase().includes(n)));
+    const find = (needles) =>
+      ids.find((id) => needles.every((n) => id.toLowerCase().includes(n)));
+
     return {
       type: "custom:wind-dir-card",
-      wind_direction_entity: find(["wind", "direction"]) && !find(["wind", "direction", "avg"]) ? find(["wind", "direction"]) : "sensor.wind_direction",
+      wind_direction_entity:
+        find(["wind", "direction"]) && !find(["wind", "direction", "avg"])
+          ? find(["wind", "direction"])
+          : "sensor.wind_direction",
       wind_speed_entity: find(["wind", "speed"]) || "sensor.wind_speed",
       wind_gust_entity: find(["wind", "gust"]) || "sensor.wind_gust",
-      wind_direction_avg_entity: find(["wind", "direction", "avg"]) || "sensor.wind_direction_avg",
-      name: "Wind"
+      wind_direction_avg_entity:
+        find(["wind", "direction", "avg"]) || "sensor.wind_direction_avg",
+      name: "Wind",
     };
   }
+
   setConfig(config) {
     if (!config.wind_direction_entity) {
       throw new Error("wind_direction_entity is required");
@@ -326,20 +250,24 @@ var WindDirCard = class extends LitElement2 {
       arrow_shadow_offset: 2,
       arrow_shadow_color: "black",
       padding: 0,
-      ...config
+      ...config,
     };
   }
+
   constructor() {
     super();
     this._gradientId = uniqueId("wdc-center-gradient");
     this._shadowId = uniqueId("wdc-arrow-shadow");
   }
+
   getCardSize() {
     return 4;
   }
+
   static getConfigElement() {
     return document.createElement("wind-dir-card-editor");
   }
+
   firstUpdated() {
     this._resizeObserver = new ResizeObserver(() => this._syncSquare());
     const wrapper = this.renderRoot.querySelector(".dial-wrapper");
@@ -348,37 +276,47 @@ var WindDirCard = class extends LitElement2 {
       this._syncSquare();
     }
   }
+
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();
     }
   }
+
   _syncSquare() {
     const wrapper = this.renderRoot.querySelector(".dial-wrapper");
     if (!wrapper) return;
-    const supportsAspectRatio = typeof CSS !== "undefined" && CSS.supports && CSS.supports("aspect-ratio: 1 / 1");
+    // Fallback for engines that don't honor CSS aspect-ratio inside grid/flex.
+    const supportsAspectRatio =
+      typeof CSS !== "undefined" && CSS.supports && CSS.supports("aspect-ratio: 1 / 1");
     if (supportsAspectRatio) {
       wrapper.style.height = "";
       return;
     }
     wrapper.style.height = `${wrapper.offsetWidth}px`;
   }
+
   _getState(entityId) {
     return getState(this.hass, entityId);
   }
+
   _getNumber(entityId) {
     return getNumber(this.hass, entityId);
   }
+
   _getUnit(entityId, fallback) {
     return getUnit(this.hass, entityId, this.config.speed_unit, fallback);
   }
+
   _valueLevel(value, warningThreshold, dangerThreshold) {
     return valueLevel(value, warningThreshold, dangerThreshold);
   }
+
   _levelColor(level) {
     return levelColor(this.config, level);
   }
+
   _renderTicks(scaleColor) {
     const ticks = [];
     const style = scaleColor ? `stroke: ${scaleColor}` : "";
@@ -398,12 +336,13 @@ var WindDirCard = class extends LitElement2 {
     }
     return ticks;
   }
+
   _renderCardinalLabels(scaleColor) {
     const labels = [
       { deg: 0, text: "N" },
       { deg: 90, text: "E" },
       { deg: 180, text: "S" },
-      { deg: 270, text: "W" }
+      { deg: 270, text: "W" },
     ];
     const style = scaleColor ? `fill: ${scaleColor}` : "";
     return labels.map(({ deg, text }) => {
@@ -415,14 +354,19 @@ var WindDirCard = class extends LitElement2 {
       `;
     });
   }
+
   _renderSector(avgDeg) {
     if (avgDeg === null) return svg``;
     const width = Number(this.config.sector_width) || 30;
     const start = normalizeDeg(avgDeg - width / 2);
     const end = normalizeDeg(avgDeg + width / 2);
     const color = this.config.sector_color;
-    const opacity = Number.isFinite(Number(this.config.sector_opacity)) ? Number(this.config.sector_opacity) : 0.35;
-    const style = [color ? `fill: ${color}` : "", `opacity: ${opacity}`].filter(Boolean).join("; ");
+    const opacity = Number.isFinite(Number(this.config.sector_opacity))
+      ? Number(this.config.sector_opacity)
+      : 0.35;
+    const style = [color ? `fill: ${color}` : "", `opacity: ${opacity}`]
+      .filter(Boolean)
+      .join("; ");
     return svg`
       <path
         d=${arcPath(start, end, SECTOR_INNER, SECTOR_OUTER)}
@@ -431,6 +375,7 @@ var WindDirCard = class extends LitElement2 {
       />
     `;
   }
+
   _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
     if (directionDeg === null) {
       return svg``;
@@ -440,14 +385,19 @@ var WindDirCard = class extends LitElement2 {
     const headSize = ARROW_HEAD_SIZE * scale;
     const shaftWidth = 3 * scale;
     const tailCircleR = headSize;
+    // Symmetric needle: the tail dot's outer edge reaches the same distance
+    // from the centre as the arrowhead's tip, which also keeps it clear of
+    // the centre backdrop that is drawn over the arrow.
     const tailR = headR - tailCircleR;
     const shortTailR = ARROW_TAIL_R * scale;
+
     const tipY = CENTER - headR;
     const tailY = CENTER + tailR;
     const shortTailY = CENTER + shortTailR;
     const headBaseY = CENTER - (headR - headSize);
     const strokeStyle = arrowColor ? `stroke: ${arrowColor}` : "";
     const fillStyle = arrowColor ? `fill: ${arrowColor}` : "";
+
     let shape;
     if (arrowType === "needle") {
       const widthAtCenter = headSize * 1.4;
@@ -478,6 +428,9 @@ var WindDirCard = class extends LitElement2 {
         <circle cx=${CENTER} cy=${tailY} r=${tailCircleR} class="arrow-tail" style=${fillStyle} />
       `;
     }
+
+    // Filter lives on an outer group so the shadow offset stays in screen
+    // space; on the rotating group it would swing around with the needle.
     return svg`
       <g filter=${arrowShadow ? `url(#${this._shadowId})` : ""}>
         <g class="arrow" transform="rotate(${directionDeg} ${CENTER} ${CENTER})">
@@ -486,40 +439,55 @@ var WindDirCard = class extends LitElement2 {
       </g>
     `;
   }
+
   render() {
     if (!this.config || !this.hass) {
-      return html2``;
+      return html``;
     }
+
     const direction = this._getNumber(this.config.wind_direction_entity);
-    const avgDirection = this.config.wind_direction_avg_entity ? this._getNumber(this.config.wind_direction_avg_entity) : null;
+    const avgDirection = this.config.wind_direction_avg_entity
+      ? this._getNumber(this.config.wind_direction_avg_entity)
+      : null;
     const speed = this._getNumber(this.config.wind_speed_entity);
-    const gust = this.config.wind_gust_entity ? this._getNumber(this.config.wind_gust_entity) : null;
+    const gust = this.config.wind_gust_entity
+      ? this._getNumber(this.config.wind_gust_entity)
+      : null;
     const speedUnit = this._getUnit(this.config.wind_speed_entity);
     const gustUnit = this._getUnit(this.config.wind_gust_entity, speedUnit);
     const speedPrecision = Math.max(0, Number(this.config.speed_precision) || 0);
     const gustPrecision = Math.max(0, Number(this.config.gust_precision) || 0);
-    const padding = Number.isFinite(Number(this.config.padding)) ? Number(this.config.padding) : 8;
+    const padding = Number.isFinite(Number(this.config.padding))
+      ? Number(this.config.padding)
+      : 8;
     const scaleColor = this.config.scale_color || "";
     const arrowColor = this.config.arrow_color || "";
     const arrowSize = Number(this.config.arrow_size) || 1;
     const arrowType = this.config.arrow_type || "arrow";
     const arrowShadow = this.config.arrow_shadow === true;
     const arrowShadowColor = this.config.arrow_shadow_color || "#000";
-    const arrowShadowOffset = Number.isFinite(Number(this.config.arrow_shadow_offset)) ? Number(this.config.arrow_shadow_offset) : 1.5;
+    const arrowShadowOffset = Number.isFinite(Number(this.config.arrow_shadow_offset))
+      ? Number(this.config.arrow_shadow_offset)
+      : 1.5;
     const showSpeedUnit = this.config.show_speed_unit !== false;
     const showGustUnit = this.config.show_gust_unit !== false;
     const speedFontSize = Number(this.config.speed_font_size) || 32;
     const gustFontSize = Number(this.config.gust_font_size) || 10;
-    const centerBgColor = this.config.center_bg_color || "var(--secondary-background-color, #2a2a2a)";
-    const centerBgOpacity = Number.isFinite(Number(this.config.center_bg_opacity)) ? Number(this.config.center_bg_opacity) : 0.55;
+    const centerBgColor =
+      this.config.center_bg_color || "var(--secondary-background-color, #2a2a2a)";
+    const centerBgOpacity = Number.isFinite(Number(this.config.center_bg_opacity))
+      ? Number(this.config.center_bg_opacity)
+      : 0.55;
     const speedColor = this._levelColor(
       this._valueLevel(speed, this.config.speed_warning_threshold, this.config.speed_danger_threshold)
     );
     const gustColor = this._levelColor(
       this._valueLevel(gust, this.config.gust_warning_threshold, this.config.gust_danger_threshold)
     );
+
     const unavailable = direction === null && speed === null;
-    return html2`
+
+    return html`
       <ha-card .header=${this.config.name}>
         <div class="card-content" style="padding: ${padding}px">
           <div class="dial-wrapper ${unavailable ? "unavailable" : ""}">
@@ -566,12 +534,15 @@ var WindDirCard = class extends LitElement2 {
               >
                 ${speed !== null ? speed.toFixed(speedPrecision) : "--"}
               </text>
-              ${showSpeedUnit && speed !== null ? svg`
+              ${showSpeedUnit && speed !== null
+                ? svg`
                   <text x=${CENTER} y=${CENTER + 16} text-anchor="middle" class="speed-unit">
                     ${speedUnit}
                   </text>
-                ` : svg``}
-              ${gust !== null ? svg`
+                `
+                : svg``}
+              ${gust !== null
+                ? svg`
                   <text
                     x=${CENTER}
                     y=${CENTER + 34}
@@ -581,13 +552,15 @@ var WindDirCard = class extends LitElement2 {
                   >
                     ${gust.toFixed(gustPrecision)}${showGustUnit ? ` ${gustUnit}` : ""}
                   </text>
-                ` : svg``}
+                `
+                : svg``}
             </svg>
           </div>
         </div>
       </ha-card>
     `;
   }
+
   static get styles() {
     return css`
       :host {
@@ -688,13 +661,15 @@ var WindDirCard = class extends LitElement2 {
       }
     `;
   }
-};
+}
+
 if (!customElements.get("wind-dir-card")) {
   customElements.define("wind-dir-card", WindDirCard);
   registerCard({
     type: "wind-dir-card",
     name: "Wind Direction Card",
-    description: "SVG compass showing momentary wind direction, average direction sector, speed and gusts.",
-    preview: true
+    description:
+      "SVG compass showing momentary wind direction, average direction sector, speed and gusts.",
+    preview: true,
   });
 }
