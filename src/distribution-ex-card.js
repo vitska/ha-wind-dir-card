@@ -4,6 +4,7 @@ import {
   css,
   svg,
   defineEditor,
+  fireEvent,
   getNumber,
   getState,
   getUnit,
@@ -11,24 +12,20 @@ import {
   uniqueId,
 } from "./shared.js";
 
-const DEFAULT_WIDTH = 400;
-const DEFAULT_HEIGHT = 260;
+const DEFAULT_WIDTH = 320;
 
-// Presets give an item its icon, colour, default name and which column it
-// belongs in. Producers feed the centre, consumers draw from it.
-const PRESETS = {
-  solar: { icon: "mdi:solar-power", color: "#ff9800", name: "Solar", side: "left" },
-  wind: { icon: "mdi:wind-turbine", color: "#26a69a", name: "Wind", side: "left" },
-  hydro: { icon: "mdi:hydro-power", color: "#42a5f5", name: "Hydro", side: "left" },
-  grid: { icon: "mdi:transmission-tower", color: "#488fc2", name: "Grid", side: "left" },
-  battery: { icon: "mdi:battery", color: "#4caf50", name: "Battery", side: "left" },
-  producer: { icon: "mdi:flash", color: "#ffca28", name: "Producer", side: "left" },
-  home: { icon: "mdi:home", color: "#9e9e9e", name: "Home", side: "right" },
-  car_charger: { icon: "mdi:car-electric", color: "#ab47bc", name: "Car", side: "right" },
-  heating: { icon: "mdi:radiator", color: "#ef5350", name: "Heating", side: "right" },
-  pool: { icon: "mdi:pool", color: "#29b6f6", name: "Pool", side: "right" },
-  consumer: { icon: "mdi:power-plug", color: "#9e9e9e", name: "Consumer", side: "right" },
-};
+// Validated categorical palette, fixed order, never cycled. Light and dark are
+// the same eight hues stepped for their own surface, not an automatic flip.
+// Both columns pass the lightness, chroma, CVD-separation and normal-vision
+// checks on the adjacent pairlist that a segmented bar uses.
+const PALETTE_LIGHT = [
+  "#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+  "#e87ba4", "#008300", "#4a3aa7", "#e34948",
+];
+const PALETTE_DARK = [
+  "#3987e5", "#d95926", "#199e70", "#c98500",
+  "#d55181", "#008300", "#9085e9", "#e66767",
+];
 
 const EDITOR_SCHEMA = [
   { name: "title", selector: { text: {} } },
@@ -37,75 +34,62 @@ const EDITOR_SCHEMA = [
     name: "decimals",
     selector: { number: { min: 0, max: 3, step: 1, mode: "box" } },
   },
-  { name: "show_names", selector: { boolean: {} } },
-  { name: "show_values", selector: { boolean: {} } },
-  { name: "show_icons", selector: { boolean: {} } },
-  { name: "show_arrows", selector: { boolean: {} } },
-  { name: "name_color", selector: { text: {} } },
-  { name: "value_color", selector: { text: {} } },
-  { name: "title_color", selector: { text: {} } },
   {
-    name: "name_font_size",
-    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
-  },
-  {
-    name: "value_font_size",
-    selector: { number: { min: 6, max: 48, step: 1, mode: "box" } },
-  },
-  {
-    name: "title_font_size",
-    selector: { number: { min: 6, max: 48, step: 1, mode: "box" } },
-  },
-  {
-    name: "icon_size",
-    selector: { number: { min: 8, max: 64, step: 1, mode: "box" } },
-  },
-  {
-    name: "item_width",
-    selector: { number: { min: 40, max: 240, step: 5, mode: "box" } },
-  },
-  { name: "arrow_color", selector: { text: {} } },
-  {
-    name: "arrow_width",
-    selector: { number: { min: 0.5, max: 12, step: 0.5, mode: "box" } },
-  },
-  {
-    name: "inactive_opacity",
-    selector: { number: { min: 0, max: 1, step: 0.05, mode: "box" } },
-  },
-  {
-    name: "animation",
+    name: "orientation",
     selector: {
       select: {
         mode: "dropdown",
         options: [
-          { value: "slide", label: "Slide (moving dots)" },
-          { value: "none", label: "None (static arrows)" },
+          { value: "horizontal", label: "Horizontal bar" },
+          { value: "vertical", label: "Vertical bar" },
         ],
       },
     },
   },
   {
-    name: "flow_speed",
-    selector: { number: { min: 0.1, max: 5, step: 0.1, mode: "box" } },
+    name: "bar_height",
+    selector: { number: { min: 4, max: 200, step: 1, mode: "box" } },
   },
   {
-    name: "dot_size",
-    selector: { number: { min: 1, max: 12, step: 0.5, mode: "box" } },
+    name: "bar_radius",
+    selector: { number: { min: 0, max: 40, step: 1, mode: "box" } },
   },
   {
-    name: "dot_count",
-    selector: { number: { min: 1, max: 6, step: 1, mode: "box" } },
+    name: "bar_gap",
+    selector: { number: { min: 0, max: 12, step: 0.5, mode: "box" } },
   },
-  { name: "bar_color", selector: { text: {} } },
   { name: "bar_bg_color", selector: { text: {} } },
+  { name: "show_values", selector: { boolean: {} } },
+  { name: "show_percent", selector: { boolean: {} } },
   {
-    name: "bar_width",
-    selector: { number: { min: 2, max: 60, step: 1, mode: "box" } },
+    name: "value_font_size",
+    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
+  },
+  { name: "value_color", selector: { text: {} } },
+  {
+    name: "min_label_percent",
+    selector: { number: { min: 0, max: 50, step: 1, mode: "box" } },
+  },
+  { name: "show_legend", selector: { boolean: {} } },
+  { name: "show_legend_values", selector: { boolean: {} } },
+  { name: "show_legend_percent", selector: { boolean: {} } },
+  {
+    name: "legend_font_size",
+    selector: { number: { min: 6, max: 32, step: 1, mode: "box" } },
+  },
+  { name: "legend_color", selector: { text: {} } },
+  {
+    name: "legend_swatch_size",
+    selector: { number: { min: 4, max: 32, step: 1, mode: "box" } },
+  },
+  { name: "title_color", selector: { text: {} } },
+  {
+    name: "title_font_size",
+    selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
   },
   {
     name: "card_height",
-    selector: { number: { min: 80, max: 800, step: 10, mode: "box" } },
+    selector: { number: { min: 40, max: 800, step: 10, mode: "box" } },
   },
   {
     name: "padding",
@@ -117,64 +101,62 @@ const EDITOR_LABELS = {
   title: "Card title",
   unit: "Unit override (default: each entity's own unit)",
   decimals: "Value decimal places",
-  show_names: "Show item names",
-  show_values: "Show item values",
-  show_icons: "Show item icons",
-  show_arrows: "Show arrows",
-  name_color: "Item name color",
-  value_color: "Item value color (default: the item's color)",
+  orientation: "Bar orientation",
+  bar_height: "Bar thickness (px)",
+  bar_radius: "Bar corner radius (px)",
+  bar_gap: "Gap between segments (px)",
+  bar_bg_color: "Bar background color",
+  show_values: "Show labels on the segments",
+  show_percent: "Segment labels show % instead of the value",
+  value_font_size: "Segment label font size (px)",
+  value_color: "Segment label color",
+  min_label_percent: "Hide segment labels below this % of the bar",
+  show_legend: "Show legend",
+  show_legend_values: "Show values in the legend",
+  show_legend_percent: "Show percentages in the legend",
+  legend_font_size: "Legend font size (px)",
+  legend_color: "Legend text color",
+  legend_swatch_size: "Legend swatch size (px)",
   title_color: "Title color",
-  name_font_size: "Name font size (px)",
-  value_font_size: "Value font size (px)",
   title_font_size: "Title font size (px)",
-  icon_size: "Icon size (px)",
-  item_width: "Item column width (px)",
-  arrow_color: "Arrow color (default: the item's color)",
-  arrow_width: "Arrow line width (px)",
-  inactive_opacity: "Opacity of items below their threshold (0-1)",
-  animation: "Arrow animation",
-  flow_speed: "Animation speed multiplier",
-  dot_size: "Flow dot radius (px)",
-  dot_count: "Flow dots per arrow",
-  bar_color: "Center bar fill color",
-  bar_bg_color: "Center bar background color",
-  bar_width: "Center bar width (px)",
-  card_height: "Card height (px, unset = fill the tile)",
+  card_height: "Card height (px, unset = fits its content)",
   padding: "Padding around contents (px)",
 };
 
 defineEditor("distribution-ex-card-editor", EDITOR_SCHEMA, EDITOR_LABELS);
-
-function clampPercent(value) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, value));
-}
 
 class DistributionExCard extends LitElement {
   static get properties() {
     return {
       hass: { attribute: false },
       config: { attribute: false },
+      _hidden: { attribute: false },
       _width: { attribute: false },
-      _height: { attribute: false },
     };
   }
 
   constructor() {
     super();
+    this._hidden = [];
     this._width = DEFAULT_WIDTH;
-    this._height = DEFAULT_HEIGHT;
-    this._uid = uniqueId("dex");
+    this._clipId = uniqueId("dex-clip");
   }
 
-  static getStubConfig() {
+  static getStubConfig(hass) {
+    const states = (hass && hass.states) || {};
+    const entities = Object.keys(states)
+      .filter(
+        (id) =>
+          id.startsWith("sensor.") &&
+          states[id].attributes &&
+          states[id].attributes.unit_of_measurement &&
+          Number.isFinite(parseFloat(states[id].state))
+      )
+      .slice(0, 3)
+      .map((entity) => ({ entity }));
     return {
       type: "custom:distribution-ex-card",
-      entities: [
-        { entity: "sensor.solar_power", preset: "solar" },
-        { entity: "sensor.grid_power", preset: "grid" },
-        { entity: "sensor.home_power", preset: "home" },
-      ],
+      entities: entities.length ? entities : [{ entity: "sensor.power" }],
     };
   }
 
@@ -188,36 +170,38 @@ class DistributionExCard extends LitElement {
     }
     this.config = {
       decimals: 1,
-      show_names: true,
-      show_values: true,
-      show_icons: true,
-      show_arrows: true,
-      name_font_size: 12,
-      value_font_size: 16,
+      orientation: "horizontal",
+      bar_height: 28,
+      bar_radius: 4,
+      bar_gap: 2,
+      show_values: false,
+      show_percent: false,
+      value_font_size: 11,
+      min_label_percent: 8,
+      show_legend: true,
+      show_legend_values: true,
+      show_legend_percent: false,
+      legend_font_size: 13,
+      legend_swatch_size: 10,
       title_font_size: 16,
-      icon_size: 24,
-      item_width: 90,
-      arrow_width: 2,
-      inactive_opacity: 0.3,
-      animation: "slide",
-      flow_speed: 1,
-      dot_size: 3,
-      dot_count: 2,
-      bar_width: 14,
-      padding: 8,
+      padding: 12,
       ...config,
     };
+    this._hidden = (config.entities || [])
+      .map((raw, index) => ({ raw, index }))
+      .filter(({ raw }) => raw && raw.hidden)
+      .map(({ index }) => index);
   }
 
   getCardSize() {
-    return 5;
+    return 3;
   }
 
   firstUpdated() {
-    const root = this.renderRoot.querySelector(".root");
-    if (root) {
+    const bar = this.renderRoot.querySelector(".bar-wrap");
+    if (bar) {
       this._resizeObserver = new ResizeObserver(() => this._measure());
-      this._resizeObserver.observe(root);
+      this._resizeObserver.observe(bar);
       this._measure();
     }
   }
@@ -237,319 +221,163 @@ class DistributionExCard extends LitElement {
   }
 
   _measure() {
-    const root = this.renderRoot.querySelector(".root");
-    if (!root) return;
-    const rect = root.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      this._width = rect.width;
-      this._height = rect.height;
-    }
+    const bar = this.renderRoot.querySelector(".bar-wrap");
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    if (rect.width > 0) this._width = rect.width;
   }
 
-  // One entry in `entities:` becomes one item: a value, a side, and everything
-  // needed to draw it. Preset supplies the defaults; per-item keys override.
+  _palette() {
+    const custom = this.config.colors;
+    if (Array.isArray(custom) && custom.length) return custom;
+    const dark = Boolean(this.hass && this.hass.themes && this.hass.themes.darkMode);
+    return dark ? PALETTE_DARK : PALETTE_LIGHT;
+  }
+
   _items() {
     const config = this.config;
+    const palette = this._palette();
     return (config.entities || []).map((raw, index) => {
       const item = typeof raw === "string" ? { entity: raw } : raw || {};
-      const preset = PRESETS[item.preset] || {};
-
       const stateObj = getState(this.hass, item.entity);
-      let value;
-      if (item.attribute) {
-        const attr =
-          stateObj && stateObj.attributes
-            ? parseFloat(stateObj.attributes[item.attribute])
-            : NaN;
-        value = Number.isFinite(attr) ? attr : null;
-      } else {
-        value = getNumber(this.hass, item.entity);
-      }
-      if (value !== null && item.invert_value) value = -value;
-
-      // Which column: explicit side wins, then producer/consumer, then the
-      // preset's own side, then alternate so unclassified items still split.
-      let side = item.side;
-      if (!side && item.producer) side = "left";
-      if (!side && item.consumer) side = "right";
-      if (!side) side = preset.side || (index % 2 === 0 ? "left" : "right");
-
-      const threshold = Number(item.threshold);
+      let value = getNumber(this.hass, item.entity);
+      // A proportional bar can't show a negative slice, so take magnitude
+      // unless the user explicitly wants the signed number in the labels.
       const magnitude = value === null ? 0 : Math.abs(value);
-      const active =
-        value !== null && (Number.isFinite(threshold) ? magnitude > threshold : magnitude > 0);
 
       return {
-        key: `${index}`,
+        index,
         entity: item.entity,
         value,
         magnitude,
-        active,
-        side,
-        name: item.name || preset.name || (stateObj && stateObj.attributes
-          ? stateObj.attributes.friendly_name
-          : "") || item.entity || "",
-        icon: item.icon || preset.icon || "mdi:flash",
-        color: item.color || preset.color || "#9e9e9e",
-        arrowColor: item.arrow_color || item.color || preset.color,
+        available: value !== null,
+        hidden: this._hidden.includes(index),
+        name:
+          item.name ||
+          (stateObj && stateObj.attributes && stateObj.attributes.friendly_name) ||
+          item.entity,
+        // Colour follows the entity's position in the list, never its rank, so
+        // hiding a segment never repaints the survivors.
+        color: item.color || palette[index % palette.length],
         decimals: Number.isFinite(Number(item.decimals))
           ? Number(item.decimals)
           : Math.max(0, Number(config.decimals) || 0),
         unit:
-          item.unit ||
-          config.unit ||
-          getUnit(this.hass, item.entity, undefined, ""),
+          item.unit || config.unit || getUnit(this.hass, item.entity, undefined, ""),
         displayAbs: item.display_abs !== false,
-        invertArrow: Boolean(item.invert_arrow),
-        hideArrows: Boolean(item.hide_arrows),
-        calcExcluded: Boolean(item.calc_excluded),
-        preset: item.preset || "",
       };
     });
   }
 
-  // autarky: share of consumption covered without importing.
-  // ratio:   share of production used at home rather than exported.
-  // Grid is signed: positive imports, negative exports.
-  _stats(items) {
-    let consumption = 0;
-    let production = 0;
-    let gridImport = 0;
-    let gridExport = 0;
-
-    items.forEach((item) => {
-      if (item.calcExcluded || item.value === null) return;
-      if (item.preset === "grid") {
-        gridImport += Math.max(0, item.value);
-        gridExport += Math.max(0, -item.value);
-        return;
-      }
-      if (item.side === "right") consumption += Math.abs(item.value);
-      else production += Math.max(0, item.value);
-    });
-
-    return {
-      consumption,
-      production,
-      gridImport,
-      gridExport,
-      autarky:
-        consumption > 0
-          ? clampPercent(((consumption - gridImport) / consumption) * 100)
-          : 0,
-      ratio:
-        production > 0
-          ? clampPercent(((production - gridExport) / production) * 100)
-          : 0,
-    };
-  }
-
-  _barValue(bar, stats) {
-    if (bar.entity) {
-      const value = getNumber(this.hass, bar.entity);
-      if (value === null) return 0;
-      const lower = Number.isFinite(Number(bar.lower_bound)) ? Number(bar.lower_bound) : 0;
-      const upper = Number.isFinite(Number(bar.upper_bound)) ? Number(bar.upper_bound) : 100;
-      const span = upper - lower || 1;
-      return clampPercent(((value - lower) / span) * 100);
-    }
-    if (bar.preset === "autarky") return stats.autarky;
-    if (bar.preset === "ratio") return stats.ratio;
-    return 0;
-  }
-
   _formatValue(item) {
-    if (item.value === null) return "--";
+    if (!item.available) return "--";
     const shown = item.displayAbs ? Math.abs(item.value) : item.value;
     return `${shown.toFixed(item.decimals)}${item.unit ? ` ${item.unit}` : ""}`;
   }
 
-  _dotDuration(magnitude, maxMagnitude) {
-    const speed = Number(this.config.flow_speed) || 1;
-    const share = maxMagnitude > 0 ? Math.min(1, magnitude / maxMagnitude) : 0;
-    const seconds = (5 - 3.5 * share) / speed;
-    // Rounded so an unrelated state update can't retime a running animation.
-    return Math.max(0.4, Math.round(seconds * 4) / 4);
+  _toggle(index) {
+    this._hidden = this._hidden.includes(index)
+      ? this._hidden.filter((i) => i !== index)
+      : [...this._hidden, index];
   }
 
-  _renderArrow(item, geo, y, maxMagnitude) {
-    const config = this.config;
-    if (config.show_arrows === false || item.hideArrows) return svg``;
-
-    const [x1, x2] =
-      item.side === "left"
-        ? [geo.leftEdge, geo.centerLeft]
-        : [geo.centerRight, geo.rightEdge];
-    if (x2 - x1 < 6) return svg``;
-
-    const color = item.arrowColor || item.color;
-    const width = Number(config.arrow_width) || 2;
-    const inactiveOpacity = Number.isFinite(Number(config.inactive_opacity))
-      ? Number(config.inactive_opacity)
-      : 0.3;
-    const pathId = `${this._uid}-arrow-${item.key}`;
-
-    // Both columns draw left-to-right; a negative value (or invert_arrow)
-    // just runs the dots backwards along the same line.
-    let forward = item.value === null ? true : item.value >= 0;
-    if (item.invertArrow) forward = !forward;
-
-    let dots = svg``;
-    if (item.active && config.animation !== "none") {
-      const duration = this._dotDuration(item.magnitude, maxMagnitude);
-      const count = Math.max(1, Math.round(Number(config.dot_count) || 2));
-      const dotSize = Number(config.dot_size) || 3;
-      dots = svg`${Array.from({ length: count }, (_, i) => svg`
-        <circle r=${dotSize} fill=${color}>
-          <animateMotion
-            dur="${duration}s"
-            begin="${-((duration / count) * i)}s"
-            repeatCount="indefinite"
-            calcMode="linear"
-            keyPoints=${forward ? "0;1" : "1;0"}
-            keyTimes="0;1"
-          >
-            <mpath href="#${pathId}" />
-          </animateMotion>
-        </circle>
-      `)}`;
-    }
-
-    return svg`
-      <path
-        id=${pathId}
-        d="M ${x1} ${y} L ${x2} ${y}"
-        fill="none"
-        stroke=${color}
-        stroke-width=${width}
-        stroke-linecap="round"
-        opacity=${item.active ? 1 : inactiveOpacity}
-      />
-      ${dots}
-    `;
+  _moreInfo(entityId) {
+    if (!entityId) return;
+    fireEvent(this, "hass-more-info", { entityId });
   }
 
-  _renderItem(item, geo, y) {
+  _renderBar(items, total) {
     const config = this.config;
-    const x = item.side === "left" ? geo.leftCenter : geo.rightCenter;
-    const inactiveOpacity = Number.isFinite(Number(config.inactive_opacity))
-      ? Number(config.inactive_opacity)
-      : 0.3;
-    const valueFontSize = Number(config.value_font_size) || 16;
-    const nameFontSize = Number(config.name_font_size) || 12;
-    const iconSize = Number(config.icon_size) || 24;
+    const vertical = config.orientation === "vertical";
+    const thickness = Number(config.bar_height) || 28;
+    const radius = Math.min(
+      Number.isFinite(Number(config.bar_radius)) ? Number(config.bar_radius) : 4,
+      thickness / 2
+    );
+    const gap = Number.isFinite(Number(config.bar_gap)) ? Number(config.bar_gap) : 2;
+    const length = vertical ? Number(config.card_height) || 160 : this._width;
 
-    // Icon sits above the value, so shift the text block down past it.
-    const valueY =
-      y - (config.show_icons === false ? 0 : iconSize / 2) + valueFontSize * 0.9;
-    const nameY = valueY + nameFontSize * 1.2;
+    const width = vertical ? thickness : length;
+    const height = vertical ? length : thickness;
+    const visible = items.filter((i) => !i.hidden && i.magnitude > 0);
+
+    const valueFontSize = Number(config.value_font_size) || 11;
+    const minLabel = Number.isFinite(Number(config.min_label_percent))
+      ? Number(config.min_label_percent)
+      : 8;
+
+    let offset = 0;
+    const segments = visible.map((item) => {
+      const share = total > 0 ? item.magnitude / total : 0;
+      const size = share * length;
+      const start = offset;
+      offset += size;
+      // The gap is carved out of each segment rather than added between them,
+      // so the segments still sum to exactly the bar's length.
+      const drawn = Math.max(0, size - (visible.length > 1 ? gap : 0));
+      const percent = share * 100;
+      const label = config.show_percent
+        ? `${percent.toFixed(0)}%`
+        : this._formatValue(item);
+      return { item, start, size, drawn, percent, label, valueFontSize, minLabel };
+    });
 
     return svg`
-      <g opacity=${item.active ? 1 : inactiveOpacity}>
+      <svg
+        viewBox="0 0 ${width} ${height}"
+        width=${width}
+        height=${height}
+        role="img"
+        aria-label=${config.title || "Distribution"}
+      >
+        <defs>
+          <clipPath id=${this._clipId}>
+            <rect x="0" y="0" width=${width} height=${height} rx=${radius} ry=${radius} />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#${this._clipId})">
+          <rect
+            x="0" y="0" width=${width} height=${height}
+            fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
+          />
+          ${segments.map(({ item, start, drawn }) =>
+            vertical
+              ? svg`
+                <rect
+                  class="segment"
+                  x="0" y=${start} width=${width} height=${drawn}
+                  fill=${item.color}
+                  @click=${() => this._moreInfo(item.entity)}
+                ><title>${item.name}: ${this._formatValue(item)}</title></rect>
+              `
+              : svg`
+                <rect
+                  class="segment"
+                  x=${start} y="0" width=${drawn} height=${height}
+                  fill=${item.color}
+                  @click=${() => this._moreInfo(item.entity)}
+                ><title>${item.name}: ${this._formatValue(item)}</title></rect>
+              `
+          )}
+        </g>
         ${config.show_values === false
           ? svg``
-          : svg`
-            <text
-              class="value"
-              x=${x}
-              y=${valueY}
-              text-anchor="middle"
-              style="font-size: ${valueFontSize}px; fill: ${config.value_color || item.color}"
-            >${this._formatValue(item)}</text>
-          `}
-        ${config.show_names === false
-          ? svg``
-          : svg`
-            <text
-              class="name"
-              x=${x}
-              y=${nameY}
-              text-anchor="middle"
-              style="font-size: ${nameFontSize}px${config.name_color ? `; fill: ${config.name_color}` : ""}"
-            >${item.name}</text>
-          `}
-      </g>
+          : segments.map(({ item, start, drawn, percent, label }) =>
+              percent < minLabel || drawn <= 0
+                ? svg``
+                : svg`
+                  <text
+                    class="segment-label"
+                    x=${vertical ? width / 2 : start + drawn / 2}
+                    y=${vertical ? start + drawn / 2 : height / 2}
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                    style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
+                  >${label}</text>
+                `
+            )}
+      </svg>
     `;
-  }
-
-  _renderCenter(geo, stats) {
-    const config = this.config;
-    const center = config.center || {};
-    const bars = center.type === "bars" && Array.isArray(center.bars) ? center.bars : [];
-    if (center.type === "none" || bars.length === 0) return svg``;
-
-    const barWidth = Number(config.bar_width) || 14;
-    const nameFontSize = Number(config.name_font_size) || 12;
-    const available = geo.centerRight - geo.centerLeft;
-    const slot = available / bars.length;
-    const top = geo.contentTop + nameFontSize * 1.4;
-    const bottom = geo.contentBottom - nameFontSize * 1.4;
-    const height = Math.max(10, bottom - top);
-
-    return svg`${bars.map((bar, index) => {
-      const percent = this._barValue(bar, stats);
-      const x = geo.centerLeft + slot * (index + 0.5);
-      const fillHeight = (height * percent) / 100;
-      const color = bar.bar_color || config.bar_color || "#4caf50";
-      const bgColor = bar.bar_bg_color || config.bar_bg_color || "rgba(127,127,127,0.25)";
-      return svg`
-        <rect
-          x=${x - barWidth / 2} y=${top} width=${barWidth} height=${height}
-          rx=${barWidth / 2} fill=${bgColor}
-        />
-        <rect
-          x=${x - barWidth / 2} y=${top + height - fillHeight}
-          width=${barWidth} height=${fillHeight}
-          rx=${barWidth / 2} fill=${color}
-        />
-        <text
-          class="name" x=${x} y=${top - nameFontSize * 0.4}
-          text-anchor="middle" style="font-size: ${nameFontSize}px"
-        >${Math.round(percent)}%</text>
-        <text
-          class="name" x=${x} y=${bottom + nameFontSize}
-          text-anchor="middle" style="font-size: ${nameFontSize}px"
-        >${bar.name || bar.preset || ""}</text>
-      `;
-    })}`;
-  }
-
-  _geometry(counts) {
-    const config = this.config;
-    const padding = Number(config.padding) || 0;
-    const itemWidth = Math.min(
-      Number(config.item_width) || 90,
-      Math.max(40, (this._width - padding * 2) * 0.32)
-    );
-    const titleHeight = config.title ? (Number(config.title_font_size) || 16) * 1.6 : 0;
-
-    const contentTop = padding + titleHeight;
-    const contentBottom = this._height - padding;
-    const rows = Math.max(1, counts.left, counts.right);
-    const rowHeight = (contentBottom - contentTop) / rows;
-
-    return {
-      padding,
-      itemWidth,
-      contentTop,
-      contentBottom,
-      rowHeight,
-      titleHeight,
-      leftCenter: padding + itemWidth / 2,
-      rightCenter: this._width - padding - itemWidth / 2,
-      leftEdge: padding + itemWidth,
-      rightEdge: this._width - padding - itemWidth,
-      centerLeft: padding + itemWidth + 12,
-      centerRight: this._width - padding - itemWidth - 12,
-    };
-  }
-
-  // Items are centred within their own column's rows, so a side with fewer
-  // items still spreads evenly rather than bunching at the top.
-  _rowY(geo, index, count) {
-    const span = geo.contentBottom - geo.contentTop;
-    const step = span / Math.max(1, count);
-    return geo.contentTop + step * (index + 0.5);
   }
 
   render() {
@@ -557,62 +385,59 @@ class DistributionExCard extends LitElement {
       return html``;
     }
 
+    const config = this.config;
     const items = this._items();
-    const left = items.filter((i) => i.side === "left");
-    const right = items.filter((i) => i.side === "right");
-    const geo = this._geometry({ left: left.length, right: right.length });
-    const stats = this._stats(items);
-    const maxMagnitude = items.reduce((max, i) => Math.max(max, i.magnitude), 0);
-    const iconSize = Number(this.config.icon_size) || 24;
-
-    const placed = [
-      ...left.map((item, i) => ({ item, y: this._rowY(geo, i, left.length) })),
-      ...right.map((item, i) => ({ item, y: this._rowY(geo, i, right.length) })),
-    ];
+    const total = items
+      .filter((i) => !i.hidden)
+      .reduce((sum, i) => sum + i.magnitude, 0);
+    const padding = Number.isFinite(Number(config.padding)) ? Number(config.padding) : 12;
+    const legendFontSize = Number(config.legend_font_size) || 13;
+    const swatch = Number(config.legend_swatch_size) || 10;
 
     return html`
       <ha-card>
-        <div
-          class="root"
-          style=${Number(this.config.card_height) > 0
+        <div class="root" style="padding: ${padding}px">
+          ${config.title
+            ? html`<div
+                class="title"
+                style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
+              >${config.title}</div>`
+            : ""}
+          <div class="bar-wrap ${config.orientation === "vertical" ? "vertical" : ""}">
+            ${this._renderBar(items, total)}
+          </div>
+          ${config.show_legend === false
             ? ""
-            : `min-height: ${DEFAULT_HEIGHT}px`}
-        >
-          <svg viewBox="0 0 ${this._width} ${this._height}">
-            ${this.config.title
-              ? svg`
-                <text
-                  class="title"
-                  x=${this._width / 2}
-                  y=${geo.padding + (Number(this.config.title_font_size) || 16)}
-                  text-anchor="middle"
-                  style="font-size: ${Number(this.config.title_font_size) || 16}px${this.config.title_color ? `; fill: ${this.config.title_color}` : ""}"
-                >${this.config.title}</text>
-              `
-              : svg``}
-            ${placed.map(({ item, y }) =>
-              this._renderArrow(item, geo, y, maxMagnitude)
-            )}
-            ${this._renderCenter(geo, stats)}
-            ${placed.map(({ item, y }) => this._renderItem(item, geo, y))}
-          </svg>
-          ${this.config.show_icons === false
-            ? ""
-            : placed.map(
-                ({ item, y }) => html`
-                  <div
-                    class="icon"
-                    style="left: ${item.side === "left"
-                      ? geo.leftCenter
-                      : geo.rightCenter}px; top: ${y -
-                    iconSize / 2}px; --mdc-icon-size: ${iconSize}px; color: ${item.color}; opacity: ${item.active
-                      ? 1
-                      : Number(this.config.inactive_opacity) || 0.3}"
-                  >
-                    <ha-icon .icon=${item.icon}></ha-icon>
-                  </div>
-                `
-              )}
+            : html`
+                <div
+                  class="legend"
+                  style="font-size: ${legendFontSize}px${config.legend_color ? `; color: ${config.legend_color}` : ""}"
+                >
+                  ${items.map(
+                    (item) => html`
+                      <button
+                        class="legend-item ${item.hidden ? "off" : ""}"
+                        @click=${() => this._toggle(item.index)}
+                        title=${item.hidden ? "Show" : "Hide"}
+                      >
+                        <span
+                          class="swatch"
+                          style="background: ${item.color}; width: ${swatch}px; height: ${swatch}px"
+                        ></span>
+                        <span class="legend-name">${item.name}</span>
+                        ${config.show_legend_values === false
+                          ? ""
+                          : html`<span class="legend-value">${this._formatValue(item)}</span>`}
+                        ${config.show_legend_percent && total > 0
+                          ? html`<span class="legend-value"
+                              >${((item.magnitude / total) * 100).toFixed(0)}%</span
+                            >`
+                          : ""}
+                      </button>
+                    `
+                  )}
+                </div>
+              `}
         </div>
       </ha-card>
     `;
@@ -627,33 +452,78 @@ class DistributionExCard extends LitElement {
         height: 100%;
         box-sizing: border-box;
         padding: 0;
-        overflow: hidden;
       }
       .root {
-        position: relative;
-        width: 100%;
+        box-sizing: border-box;
         height: 100%;
-      }
-      svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-      .icon {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        line-height: 0;
-        pointer-events: none;
-      }
-      .value {
-        font-weight: 700;
-      }
-      .name {
-        fill: var(--secondary-text-color, #9e9e9e);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
       .title {
-        fill: var(--primary-text-color, #fff);
-        font-weight: 700;
+        color: var(--primary-text-color, #fff);
+        font-weight: 500;
+      }
+      .bar-wrap {
+        width: 100%;
+      }
+      .bar-wrap svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .bar-wrap.vertical {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        justify-content: center;
+      }
+      .bar-wrap.vertical svg {
+        width: auto;
+        height: 100%;
+      }
+      .segment {
+        cursor: pointer;
+      }
+      /* Labels wear a text token, not the series colour - the segment fill
+         beside them already carries identity. */
+      .segment-label {
+        fill: #fff;
+        font-weight: 600;
+        pointer-events: none;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        color: var(--secondary-text-color, #9e9e9e);
+      }
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        border: none;
+        padding: 2px 0;
+        margin: 0;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      .legend-item.off {
+        opacity: 0.4;
+      }
+      .legend-item.off .legend-name {
+        text-decoration: line-through;
+      }
+      .swatch {
+        display: inline-block;
+        border-radius: 2px;
+        flex: none;
+      }
+      .legend-value {
+        color: var(--primary-text-color, #fff);
+        font-weight: 600;
       }
     `;
   }
@@ -665,7 +535,7 @@ if (!customElements.get("distribution-ex-card")) {
     type: "distribution-ex-card",
     name: "Distribution Ex Card",
     description:
-      "SVG power distribution: producers and consumers either side of a centre panel, with animated arrows.",
+      "Compare numeric entities as a segmented bar with a toggleable legend, drawn in SVG.",
     preview: true,
   });
 }

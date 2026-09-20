@@ -11,7 +11,7 @@ options.
 | ---- | ---- | ------------ |
 | [Wind Direction Card](#wind-direction-card) | `custom:wind-dir-card` | Compass dial with wind direction, average-direction sector, speed and gusts |
 | [Sensor Ex Card](#sensor-ex-card) | `custom:sensor-ex-card` | Sensor readout with label, value, unit and a history graph |
-| [Distribution Ex Card](#distribution-ex-card) | `custom:distribution-ex-card` | Power distribution: producers and consumers either side of a centre panel, with animated arrows |
+| [Distribution Ex Card](#distribution-ex-card) | `custom:distribution-ex-card` | Compare numeric entities as a segmented bar with a toggleable legend |
 
 Registering the single `ha-cards.js` resource makes every card in the
 collection available.
@@ -412,185 +412,140 @@ cards:
 
 ## Distribution Ex Card
 
-`custom:distribution-ex-card` — power distribution laid out like the standard
-distribution card, drawn in SVG with the styling depth of the other cards here.
+`custom:distribution-ex-card` — the same idea as Home Assistant's built-in
+[distribution card](https://www.home-assistant.io/dashboards/distribution/):
+several numeric entities shown as one **segmented bar**, each a slice
+proportional to its value, with a **legend** beneath. Nothing here is specific
+to energy — any comparable numbers work.
 
-Producers sit in a **left column**, consumers in a **right column**, with a
-**centre panel** between them. Each item shows its icon, value and name, and an
-**arrow** runs between it and the centre with dots animating in the direction
-power is moving — faster the more it carries. Items below their threshold dim
-instead of disappearing.
-
-### Entities
-
-Every item is one entry in `entities:`. A `preset` supplies its icon, colour,
-default name and which column it lands in:
+Select a segment to open that entity's more-info dialog; select a legend item to
+hide or show its slice, and the rest rescale to fill the bar.
 
 ```yaml
 type: custom:distribution-ex-card
-title: Energy
+title: Power distribution
 entities:
-  - entity: sensor.solar_power
-    preset: solar
   - entity: sensor.grid_power
-    preset: grid
-  - entity: sensor.home_power
-    preset: home
-  - entity: sensor.wallbox_power
-    preset: car_charger
-    name: EV
-center:
-  type: bars
-  bars:
-    - preset: autarky
-      name: autarky
-    - preset: ratio
-      name: ratio
+    name: Grid
+  - entity: sensor.solar_power
+    name: Solar
+  - entity: sensor.home_battery_power
+    name: Battery
 ```
 
-**Presets** — `solar`, `wind`, `hydro`, `grid`, `battery`, `producer` (left
-column); `home`, `car_charger`, `heating`, `pool`, `consumer` (right column).
+### Colors
 
-**Which column an item lands in**, in priority order: an explicit `side:`
-(`left`/`right`), then `producer: true` / `consumer: true`, then the preset's
-own side, and failing all that items simply alternate.
+Leave `color` off and slices are assigned from a built-in categorical palette in
+list order. It's a validated palette: every adjacent pair clears the
+colour-vision-deficiency and normal-vision separation thresholds, in light and
+dark alike, and the card picks the light or dark steps from your theme rather
+than flipping one set. Colour follows an entity's position in the list, so
+hiding a slice never repaints the others.
 
-**Signs drive the arrows.** A negative value reverses its arrow, which is how a
-signed grid sensor shows import versus export from one entity. `invert_value`
-flips the reading itself, `invert_arrow` flips only the direction.
+Set `color` per entity to override, or `colors:` at card level to replace the
+palette wholesale.
 
-### Per-entity options
-
-| Option | Description |
-| ------ | ----------- |
-| `entity` | The entity to read (required) |
-| `preset` | Icon, colour, name and column defaults (see list above) |
-| `name` | Label under the value (default: preset name, else the friendly name) |
-| `icon` | Icon override |
-| `color` | Colour for the icon, value and arrow |
-| `arrow_color` | Colour for just the arrow |
-| `decimals` | Decimal places for this item (default: the card's `decimals`) |
-| `unit` | Unit override for this item |
-| `attribute` | Read this attribute instead of the state |
-| `display_abs` | Show the magnitude, hiding the sign (default `true`) |
-| `invert_value` | Flip the reading's sign |
-| `invert_arrow` | Flip only the arrow direction |
-| `hide_arrows` | Draw no arrow for this item |
-| `threshold` | Below this magnitude the item dims and its dots stop |
-| `side` | Force `left` or `right` |
-| `producer` / `consumer` | Force the column without a preset |
-| `calc_excluded` | Leave this item out of the autarky/ratio sums |
-
-### Centre panel
-
-`center.type` is `bars` or `none`. Each bar is either a `preset` computed from
-the items, or an `entity` scaled between `lower_bound` and `upper_bound`:
-
-```yaml
-center:
-  type: bars
-  bars:
-    - preset: autarky          # share of consumption met without importing
-      name: autarky
-    - entity: sensor.battery_soc
-      name: SOC
-      lower_bound: 0
-      upper_bound: 100
-      bar_color: "#4caf50"
-```
-
-- **`autarky`** = `(consumption − grid import) / consumption`
-- **`ratio`** = `(production − grid export) / production`
-
-Both derive from the items, treating a `grid` preset as signed (positive
-imports, negative exports) and summing the consumer column as consumption.
-`calc_excluded: true` keeps an item out of both.
-
-### Card options
+### Configuration
 
 | Option | Required | Description |
 | ------ | -------- | ----------- |
 | `type` | yes | `custom:distribution-ex-card` |
-| `entities` | yes | The items (see above) |
-| `title` | no | Title across the top |
-| `center` | no | Centre panel config |
-| `unit` | no | Unit override for every item |
+| `entities` | yes | The entities to compare (see below) |
+| `title` | no | Title above the bar |
+| `colors` | no | List of colors replacing the default palette |
+| `unit` | no | Unit override for every entity |
 | `decimals` | no | Decimal places (default `1`) |
-| `show_names` | no | Show item names (default `true`) |
-| `show_values` | no | Show item values (default `true`) |
-| `show_icons` | no | Show item icons (default `true`) |
-| `show_arrows` | no | Show arrows at all (default `true`) |
-| `name_color` | no | Item name colour (default: theme secondary text) |
-| `value_color` | no | Item value colour (default: the item's own colour) |
-| `title_color` | no | Title colour |
-| `name_font_size` | no | Name font size in px (default `12`) |
-| `value_font_size` | no | Value font size in px (default `16`) |
+| `orientation` | no | `horizontal` (default) or `vertical` |
+| `bar_height` | no | Bar thickness in px (default `28`) |
+| `bar_radius` | no | Corner radius in px (default `4`) |
+| `bar_gap` | no | Gap between segments in px (default `2`) |
+| `bar_bg_color` | no | Bar background, seen when values are zero |
+| `show_values` | no | Label each segment in place (default `false`) |
+| `show_percent` | no | Segment labels show `%` instead of the value |
+| `value_font_size` | no | Segment label size in px (default `11`) |
+| `value_color` | no | Segment label color (default white) |
+| `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
+| `show_legend` | no | Show the legend (default `true`) |
+| `show_legend_values` | no | Show values in the legend (default `true`) |
+| `show_legend_percent` | no | Show percentages in the legend (default `false`) |
+| `legend_font_size` | no | Legend font size in px (default `13`) |
+| `legend_color` | no | Legend text color |
+| `legend_swatch_size` | no | Legend swatch size in px (default `10`) |
 | `title_font_size` | no | Title font size in px (default `16`) |
-| `icon_size` | no | Icon size in px (default `24`) |
-| `item_width` | no | Column width in px (default `90`) |
-| `arrow_color` | no | Arrow colour for every item (default: each item's colour) |
-| `arrow_width` | no | Arrow line width in px (default `2`) |
-| `inactive_opacity` | no | Opacity of items below threshold (default `0.3`) |
-| `animation` | no | `slide` (moving dots, default) or `none` |
-| `flow_speed` | no | Animation speed multiplier (default `1`) |
-| `dot_size` | no | Dot radius in px (default `3`) |
-| `dot_count` | no | Dots per arrow (default `2`) |
-| `bar_color` | no | Centre bar fill colour (default `#4caf50`) |
-| `bar_bg_color` | no | Centre bar background colour |
-| `bar_width` | no | Centre bar width in px (default `14`) |
-| `card_height` | no | Fixed card height in px; unset fills the tile |
-| `padding` | no | Padding around the contents in px (default `8`) |
+| `title_color` | no | Title color |
+| `card_height` | no | Fixed height in px; unset fits the content |
+| `padding` | no | Padding around the contents in px (default `12`) |
+
+Per entity:
+
+| Option | Description |
+| ------ | ----------- |
+| `entity` | The entity to read (required) |
+| `name` | Label in the legend (default: its friendly name) |
+| `color` | Color for this slice |
+| `unit` | Unit override for this entity |
+| `decimals` | Decimal places for this entity |
+| `display_abs` | Show the magnitude, hiding the sign (default `true`) |
+| `hidden` | Start with this slice hidden |
 
 ### Examples
 
-**Minimal** — two items, no centre panel:
+**Bare minimum** — names and colors come from the entities and the palette:
 
 ```yaml
 type: custom:distribution-ex-card
 entities:
+  - entity: sensor.grid_power
   - entity: sensor.solar_power
-    preset: solar
-  - entity: sensor.home_power
-    preset: home
 ```
 
-**Styled**, with a static diagram and a battery bar in the centre:
+**Labelled slices, percentages, no legend** — a compact strip:
 
 ```yaml
 type: custom:distribution-ex-card
-title: Power
 entities:
-  - entity: sensor.pv_power
-    preset: solar
-    name: PV
-  - entity: sensor.grid_power
-    preset: grid
-    threshold: 25
-  - entity: sensor.battery_power
-    preset: battery
-  - entity: sensor.house_power
-    preset: home
-center:
-  type: bars
-  bars:
-    - entity: sensor.battery_soc
-      name: SOC
-animation: none
-value_font_size: 20
-name_color: "#9e9e9e"
-item_width: 100
-padding: 12
-card_height: 280
+  - entity: sensor.living_room_power
+    name: Living
+  - entity: sensor.kitchen_power
+    name: Kitchen
+  - entity: sensor.office_power
+    name: Office
+show_values: true
+show_percent: true
+show_legend: false
+bar_height: 22
+padding: 8
+```
+
+**Styled**, with explicit colors and a vertical bar:
+
+```yaml
+type: custom:distribution-ex-card
+title: Daily energy
+orientation: vertical
+card_height: 240
+bar_height: 40
+bar_radius: 8
+entities:
+  - entity: sensor.deye10k_day_battery_charge
+    name: BT-C
+    color: "#4caf50"
+  - entity: sensor.deye10k_day_battery_discharge
+    name: BT-D
+    color: "#eb6834"
+show_legend_percent: true
+legend_font_size: 14
 ```
 
 ### Notes
 
-- Items should share a unit, since one unit is shown per item from its own
-  entity; `unit` overrides all of them.
-- `threshold` is the way to hide standby noise — the item dims and its dots
-  stop rather than vanishing, so the layout doesn't jump around.
-- Dot durations are rounded, so an unrelated state update can't retime a
-  running animation and make the dots jump.
+- Values are compared by **magnitude**, so a negative reading still contributes
+  a slice; `display_abs: false` keeps the sign in the labels.
+- Entities should share a unit, since the bar compares raw numbers.
+- An unavailable entity contributes nothing to the bar and shows `--` in the
+  legend, rather than breaking the proportions.
+- Hovering a segment shows its name and value; the legend is always available as
+  the readable fallback, which matters for the lighter palette slots.
 
 ## Repo layout
 
