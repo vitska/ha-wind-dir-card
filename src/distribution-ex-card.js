@@ -63,6 +63,19 @@ const EDITOR_SCHEMA = [
   { name: "show_values", selector: { boolean: {} } },
   { name: "show_percent", selector: { boolean: {} } },
   {
+    name: "segment_label",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "value", label: "Value" },
+          { value: "percent", label: "Percentage" },
+          { value: "both", label: "Value and percentage" },
+        ],
+      },
+    },
+  },
+  {
     name: "value_font_size",
     selector: { number: { min: 6, max: 40, step: 1, mode: "box" } },
   },
@@ -73,6 +86,18 @@ const EDITOR_SCHEMA = [
   },
   { name: "show_total", selector: { boolean: {} } },
   { name: "total_label", selector: { text: {} } },
+  {
+    name: "total_position",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "bottom", label: "Bottom (below the legend)" },
+          { value: "top", label: "Top (beside the title)" },
+        ],
+      },
+    },
+  },
   {
     name: "total_font_size",
     selector: { number: { min: 6, max: 48, step: 1, mode: "box" } },
@@ -117,11 +142,13 @@ const EDITOR_LABELS = {
   bar_bg_color: "Bar background color",
   show_values: "Show labels on the segments",
   show_percent: "Segment labels show % instead of the value",
+  segment_label: "What the segment labels show",
   value_font_size: "Segment label font size (px)",
   value_color: "Segment label color",
   min_label_percent: "Hide segment labels below this % of the bar",
   show_total: "Show the total",
   total_label: "Total label",
+  total_position: "Where the total goes",
   total_font_size: "Total font size (px)",
   total_color: "Total color",
   show_segment_names: "Include names in the labels beside a vertical bar",
@@ -196,6 +223,7 @@ class DistributionExCard extends LitElement {
       min_label_percent: 8,
       show_total: false,
       total_label: "Total",
+      total_position: "bottom",
       total_font_size: 16,
       show_segment_names: true,
       show_legend: true,
@@ -296,6 +324,14 @@ class DistributionExCard extends LitElement {
     return `${shown.toFixed(item.decimals)}${item.unit ? ` ${item.unit}` : ""}`;
   }
 
+  // segment_label supersedes the older show_percent flag, which stays
+  // supported so existing configs keep working.
+  _labelMode() {
+    const mode = this.config.segment_label;
+    if (mode === "value" || mode === "percent" || mode === "both") return mode;
+    return this.config.show_percent ? "percent" : "value";
+  }
+
   // The total follows whatever is currently visible, so hiding a slice in the
   // legend updates it too.
   _formatTotal(items, total) {
@@ -353,10 +389,20 @@ class DistributionExCard extends LitElement {
       // so the segments still sum to exactly the bar's length.
       const drawn = Math.max(0, size - (visible.length > 1 ? gap : 0));
       const percent = share * 100;
-      const label = config.show_percent
-        ? `${percent.toFixed(0)}%`
-        : this._formatValue(item);
-      return { item, start, size, drawn, percent, label, valueFontSize, minLabel };
+      const mode = this._labelMode();
+      const valueText = this._formatValue(item);
+      const percentText = `${percent.toFixed(0)}%`;
+      const label =
+        mode === "percent"
+          ? percentText
+          : mode === "both"
+            ? `${valueText} · ${percentText}`
+            : valueText;
+      return {
+        item, start, size, drawn, percent, label,
+        valueText, percentText, mode,
+        valueFontSize, minLabel,
+      };
     });
 
     return svg`
@@ -404,7 +450,7 @@ class DistributionExCard extends LitElement {
         </g>
         ${config.show_values === false
           ? svg``
-          : segments.map(({ item, start, drawn, percent, label }) => {
+          : segments.map(({ item, start, drawn, percent, label, valueText, percentText, mode }) => {
               if (percent < minLabel || drawn <= 0) return svg``;
               if (!vertical) {
                 // Sits inside the slice, so it wears a light ink that reads on
@@ -423,6 +469,7 @@ class DistributionExCard extends LitElement {
               // Beside the bar, vertically centred on its slice. Sitting on the
               // card surface it takes normal text ink, with the slice's colour
               // to its left carrying the identity.
+              const showName = config.show_segment_names !== false;
               return svg`
                 <text
                   class="segment-aside"
@@ -433,14 +480,20 @@ class DistributionExCard extends LitElement {
                   style="font-size: ${valueFontSize}px"
                   @click=${() => this._moreInfo(item.entity)}
                 >
-                  ${config.show_segment_names === false
+                  ${showName ? svg`<tspan class="aside-name">${item.name}</tspan>` : svg``}
+                  ${mode === "percent"
                     ? svg``
-                    : svg`<tspan class="aside-name">${item.name}</tspan>`}
-                  <tspan
-                    class="aside-value"
-                    dx=${config.show_segment_names === false ? 0 : 6}
-                    style=${config.value_color ? `fill: ${config.value_color}` : ""}
-                  >${label}</tspan>
+                    : svg`<tspan
+                        class="aside-value"
+                        dx=${showName ? 6 : 0}
+                        style=${config.value_color ? `fill: ${config.value_color}` : ""}
+                      >${valueText}</tspan>`}
+                  ${mode === "value"
+                    ? svg``
+                    : svg`<tspan
+                        class="aside-percent"
+                        dx=${mode === "percent" && !showName ? 0 : 6}
+                      >${percentText}</tspan>`}
                 </text>
               `;
             })}
@@ -465,7 +518,7 @@ class DistributionExCard extends LitElement {
     return html`
       <ha-card>
         <div class="root" style="padding: ${padding}px">
-          ${config.title || config.show_total
+          ${config.title || (config.show_total && config.total_position === "top")
             ? html`<div class="header">
                 ${config.title
                   ? html`<div
@@ -473,7 +526,7 @@ class DistributionExCard extends LitElement {
                       style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
                     >${config.title}</div>`
                   : html`<span></span>`}
-                ${config.show_total
+                ${config.show_total && config.total_position === "top"
                   ? html`<div
                       class="total"
                       style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
@@ -521,6 +574,17 @@ class DistributionExCard extends LitElement {
                   )}
                 </div>
               `}
+          ${config.show_total && config.total_position !== "top"
+            ? html`<div
+                class="total total-bottom"
+                style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
+              >
+                ${config.total_label
+                  ? html`<span class="total-label">${config.total_label}</span>`
+                  : ""}
+                <span class="total-value">${this._formatTotal(items, total)}</span>
+              </div>`
+            : ""}
         </div>
       </ha-card>
     `;
@@ -561,6 +625,17 @@ class DistributionExCard extends LitElement {
         color: var(--secondary-text-color, #9e9e9e);
         margin-right: 6px;
       }
+      /* A rule and a spread-out label/value read as a sum line, rather than as
+         one more unexplained number floating near the title. */
+      .total-bottom {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: auto;
+        padding-top: 8px;
+        border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.3));
+      }
       .total-value {
         font-weight: 700;
       }
@@ -599,6 +674,9 @@ class DistributionExCard extends LitElement {
       .aside-value {
         fill: var(--primary-text-color, #fff);
         font-weight: 600;
+      }
+      .aside-percent {
+        fill: var(--secondary-text-color, #9e9e9e);
       }
       .legend {
         display: flex;

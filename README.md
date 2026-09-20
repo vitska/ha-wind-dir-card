@@ -420,7 +420,7 @@ to energy — any comparable numbers work.
 
 Select a segment to open that entity's more-info dialog; select a legend item to
 hide or show its slice, and the rest rescale to fill the bar. `show_total: true`
-adds the sum of the visible slices beside the title.
+adds the sum of the visible slices as a labelled row along the bottom.
 
 ```yaml
 type: custom:distribution-ex-card
@@ -462,12 +462,14 @@ palette wholesale.
 | `bar_gap` | no | Gap between segments in px (default `2`) |
 | `bar_bg_color` | no | Bar background, seen when values are zero |
 | `show_values` | no | Label each segment in place (default `false`) |
-| `show_percent` | no | Segment labels show `%` instead of the value |
+| `show_percent` | no | Shorthand for `segment_label: percent` |
+| `segment_label` | no | What the segment labels show: `value` (default), `percent`, or `both` |
 | `value_font_size` | no | Segment label size in px (default `11`) |
 | `value_color` | no | Segment label color (default white) |
 | `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
 | `show_total` | no | Show the sum of the visible slices (default `false`) |
 | `total_label` | no | Text before the total (default `Total`; set `""` for none) |
+| `total_position` | no | `bottom` (default, its own row under the legend) or `top` (beside the title) |
 | `total_font_size` | no | Total font size in px (default `16`) |
 | `total_color` | no | Total color |
 | `show_segment_names` | no | Include the name in the labels beside a vertical bar (default `true`) |
@@ -507,6 +509,7 @@ title: Battery
 orientation: vertical
 card_height: 220
 show_values: true
+segment_label: both
 show_total: true
 entities:
   - entity: sensor.deye10k_day_battery_charge
@@ -581,6 +584,12 @@ legend_font_size: 14
 - The total reflects what's currently visible, so hiding a slice in the legend
   updates it. It uses the card's `decimals` and the first entity's unit unless
   `unit` overrides it.
+- It sits at the bottom behind a rule, with its label, so it reads as a sum
+  rather than as one more number. `total_position: top` puts it beside the
+  title instead.
+- `segment_label: both` renders the value and percentage together — as
+  `3.5 kWh · 83%` inside a horizontal slice, and as separate value/percentage
+  labels beside a vertical one, the percentage in a quieter ink.
 
 ## Repo layout
 
