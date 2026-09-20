@@ -81,6 +81,14 @@ const EDITOR_SCHEMA = [
   },
   { name: "value_color", selector: { text: {} } },
   {
+    name: "unit_font_size",
+    selector: { "number": { "min": 4, "max": 40, "step": 1, "mode": "box" } },
+  },
+  {
+    name: "name_column_width",
+    selector: { "number": { "min": 0, "max": 200, "step": 2, "mode": "box" } },
+  },
+  {
     name: "aside_font_size",
     selector: { "number": { "min": 6, "max": 48, "step": 1, "mode": "box" } },
   },
@@ -159,6 +167,8 @@ const EDITOR_LABELS = {
   segment_label: "What the segment labels show",
   value_font_size: "Segment label font size (px)",
   value_color: "Segment label color",
+  unit_font_size: "Unit font size (px, defaults to the value's size)",
+  name_column_width: "Width of the name column beside a vertical bar (px)",
   aside_font_size: "Font size of the labels beside a vertical bar (px)",
   show_leaders: "Draw leader lines from a vertical bar to its labels",
   leader_color: "Leader line color",
@@ -341,6 +351,41 @@ class DistributionExCard extends LitElement {
     });
   }
 
+  // Split so the unit can take its own size. _formatValue stays whole for
+  // tooltips and the legend's plain text.
+  _valueParts(item) {
+    if (!item.available) return { value: "--", unit: "" };
+    const shown = item.displayAbs ? Math.abs(item.value) : item.value;
+    return { value: shown.toFixed(item.decimals), unit: item.unit || "" };
+  }
+
+  _totalParts(items, total) {
+    const config = this.config;
+    const decimals = Math.max(0, Number(config.decimals) || 0);
+    const unit =
+      config.unit ||
+      (items.find((i) => !i.hidden && i.unit) || items.find((i) => i.unit) || {}).unit ||
+      "";
+    return { value: total.toFixed(decimals), unit };
+  }
+
+  _unitFontSize(valueFontSize) {
+    const size = Number(this.config.unit_font_size);
+    return Number.isFinite(size) && size > 0 ? size : valueFontSize;
+  }
+
+  // value and unit as two tspans, so the unit can be sized independently while
+  // still flowing straight after the number.
+  _valueTspans(parts, valueFontSize, extraStyle) {
+    const unitSize = this._unitFontSize(valueFontSize);
+    return svg`<tspan
+        class="aside-value"
+        style="font-size: ${valueFontSize}px${extraStyle || ""}"
+      >${parts.value}</tspan>${parts.unit
+        ? svg`<tspan class="aside-unit" dx="3" style="font-size: ${unitSize}px">${parts.unit}</tspan>`
+        : svg``}`;
+  }
+
   _formatValue(item) {
     if (!item.available) return "--";
     const shown = item.displayAbs ? Math.abs(item.value) : item.value;
@@ -422,6 +467,18 @@ class DistributionExCard extends LitElement {
     const bracketX1 = thickness + 4;
     const bracketX2 = bracketX1 + (showLeaders ? 6 : 0);
     const labelX = bracketX2 + (showLeaders ? leaderLength : 8) + 4;
+
+    // Names and values get their own columns. Without this the values start
+    // wherever each name happens to end, so they - and the total - never line
+    // up. The column only exists when something is actually written in it.
+    const namesShown = config.show_segment_names !== false;
+    const anyName = namesShown || Boolean(config.total_label);
+    const nameColumn = Number.isFinite(Number(config.name_column_width))
+      ? Number(config.name_column_width)
+      : anyName
+        ? asideFontSize * 3.4
+        : 0;
+    const valueX = labelX + nameColumn;
 
     const width = this._width;
     const height = this._barHeight;
@@ -506,20 +563,27 @@ class DistributionExCard extends LitElement {
                   : svg``}
                 ${hasAside
                   ? svg`
+                    ${namesShown
+                      ? svg`
+                        <text
+                          class="aside-name"
+                          x=${labelX} y=${mid}
+                          text-anchor="start" dominant-baseline="central"
+                          style="font-size: ${asideFontSize}px"
+                          @click=${() => this._moreInfo(item.entity)}
+                        >${item.name}</text>
+                      `
+                      : svg``}
                     <text
                       class="segment-aside"
-                      x=${labelX} y=${mid}
+                      x=${valueX} y=${mid}
                       text-anchor="start" dominant-baseline="central"
-                      style="font-size: ${asideFontSize}px"
                       @click=${() => this._moreInfo(item.entity)}
-                    >
-                      ${showName ? svg`<tspan class="aside-name">${item.name}</tspan>` : svg``}
-                      <tspan
-                        class="aside-value"
-                        dx=${showName ? 6 : 0}
-                        style=${config.value_color ? `fill: ${config.value_color}` : ""}
-                      >${valueText}</tspan>
-                    </text>
+                    >${this._valueTspans(
+                      this._valueParts(item),
+                      asideFontSize,
+                      config.value_color ? `; fill: ${config.value_color}` : ""
+                    )}</text>
                   `
                   : svg``}
               `;
@@ -537,18 +601,25 @@ class DistributionExCard extends LitElement {
                 />
               `
               : svg``}
+            ${config.total_label
+              ? svg`
+                <text
+                  class="aside-name total-aside"
+                  x=${labelX} y=${totalY}
+                  text-anchor="start" dominant-baseline="central"
+                  style="font-size: ${asideFontSize}px"
+                >${config.total_label}</text>
+              `
+              : svg``}
             <text
               class="segment-aside total-aside"
-              x=${labelX} y=${totalY}
+              x=${valueX} y=${totalY}
               text-anchor="start" dominant-baseline="central"
-              style="font-size: ${asideFontSize}px${config.total_color ? `; fill: ${config.total_color}` : ""}"
-            >
-              ${config.total_label
-                ? svg`<tspan class="aside-name">${config.total_label}</tspan>`
-                : svg``}
-              <tspan class="aside-value" dx=${config.total_label ? 6 : 0}
-              >${this._formatTotal(items, total)}</tspan>
-            </text>
+            >${this._valueTspans(
+              this._totalParts(items, total),
+              asideFontSize,
+              config.total_color ? `; fill: ${config.total_color}` : ""
+            )}</text>
           `
           : svg``}
       </svg>
@@ -570,15 +641,8 @@ class DistributionExCard extends LitElement {
       // so the segments still sum to exactly the bar's length.
       const drawn = Math.max(0, size - (visible.length > 1 ? gap : 0));
       const percent = share * 100;
-      const valueText = this._formatValue(item);
       const percentText = `${percent.toFixed(0)}%`;
-      const label =
-        mode === "percent"
-          ? percentText
-          : mode === "both"
-            ? `${valueText} \u00b7 ${percentText}`
-            : valueText;
-      return { item, start, drawn, percent, label };
+      return { item, start, drawn, percent, percentText, parts: this._valueParts(item) };
     });
 
     return svg`
@@ -610,18 +674,25 @@ class DistributionExCard extends LitElement {
         </g>
         ${config.show_values === false
           ? svg``
-          : segments.map(({ start, drawn, percent, label }) =>
-              percent < minLabel || drawn <= 0
-                ? svg``
-                : svg`
-                  <text
-                    class="segment-label"
-                    x=${start + drawn / 2} y=${height / 2}
-                    text-anchor="middle" dominant-baseline="central"
-                    style="font-size: ${valueFontSize}px${config.value_color ? `; fill: ${config.value_color}` : ""}"
-                  >${label}</text>
-                `
-            )}
+          : segments.map(({ start, drawn, percent, percentText, parts }) => {
+              if (percent < minLabel || drawn <= 0) return svg``;
+              const unitSize = this._unitFontSize(valueFontSize);
+              const colour = config.value_color ? `; fill: ${config.value_color}` : "";
+              return svg`
+                <text
+                  class="segment-label"
+                  x=${start + drawn / 2} y=${height / 2}
+                  text-anchor="middle" dominant-baseline="central"
+                  style="font-size: ${valueFontSize}px${colour}"
+                >${mode === "percent"
+                  ? svg`${percentText}`
+                  : svg`<tspan style="font-size: ${valueFontSize}px">${parts.value}</tspan>${parts.unit
+                      ? svg`<tspan dx="3" style="font-size: ${unitSize}px">${parts.unit}</tspan>`
+                      : svg``}${mode === "both"
+                      ? svg`<tspan dx="4" style="font-size: ${unitSize}px">\u00b7 ${percentText}</tspan>`
+                      : svg``}`}</text>
+              `;
+            })}
       </svg>
     `;
   }
@@ -688,7 +759,15 @@ class DistributionExCard extends LitElement {
                         <span class="legend-name">${item.name}</span>
                         ${config.show_legend_values === false
                           ? ""
-                          : html`<span class="legend-value">${this._formatValue(item)}</span>`}
+                          : html`<span class="legend-value"
+                              >${this._valueParts(item).value}${this._valueParts(item).unit
+                                ? html`<span
+                                    class="legend-unit"
+                                    style="font-size: ${this._unitFontSize(legendFontSize)}px"
+                                    >${this._valueParts(item).unit}</span
+                                  >`
+                                : ""}</span
+                            >`}
                         ${config.show_legend_percent && total > 0
                           ? html`<span class="legend-value"
                               >${((item.magnitude / total) * 100).toFixed(0)}%</span
@@ -797,6 +876,7 @@ class DistributionExCard extends LitElement {
       }
       .aside-name {
         fill: var(--secondary-text-color, #9e9e9e);
+        cursor: pointer;
       }
       .aside-value {
         fill: var(--primary-text-color, #fff);
@@ -837,6 +917,14 @@ class DistributionExCard extends LitElement {
       .legend-value {
         color: var(--primary-text-color, #fff);
         font-weight: 600;
+      }
+      .legend-unit {
+        margin-left: 3px;
+        font-weight: 400;
+      }
+      .aside-unit {
+        fill: var(--primary-text-color, #fff);
+        font-weight: 400;
       }
     `;
   }

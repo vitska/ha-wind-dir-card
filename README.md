@@ -467,6 +467,8 @@ palette wholesale.
 | `value_font_size` | no | Segment label size in px (default `11`) |
 | `value_color` | no | Segment label color (default white) |
 | `aside_font_size` | no | Font size of the labels beside a vertical bar (default `16`) |
+| `unit_font_size` | no | Unit font size in px (default: the same size as its value) |
+| `name_column_width` | no | Width of the name column beside a vertical bar (default: sized from `aside_font_size`, `0` when nothing is named) |
 | `show_leaders` | no | Draw leader lines from a vertical bar to its labels (default `true`) |
 | `leader_color` | no | Leader line color |
 | `leader_width` | no | Leader line width in px (default `1`) |
@@ -550,7 +552,14 @@ and `total_label` to prefix the total. Leader lines are on by default —
 `show_leaders: false` drops them, `leader_length` moves the label column, and
 `leader_color` / `leader_width` restyle them. `aside_font_size` sizes the
 callout text independently of the percentages inside the bar, which use
-`value_font_size`.
+`value_font_size`, and `unit_font_size` sizes the unit independently of the
+number it follows.
+
+Names and values occupy **separate columns**, so the numbers line up with each
+other and with the total no matter how long the names are. The column is only
+reserved when something is actually written in it — with no names and no
+`total_label` the values sit straight after the leader. `name_column_width`
+overrides its width.
 
 A slice too short for its percentage to fit simply doesn't get one, and
 `min_label_percent` suppresses both the percentage and the callout for slivers.
@@ -623,6 +632,9 @@ legend_font_size: 14
 - `segment_label: both` renders both figures — as `3.5 kWh · 83%` inside a
   horizontal slice, and on a vertical bar as the percentage inside the slice
   with the value called out beside it.
+- The value and its unit are drawn separately everywhere they appear — in the
+  callouts, the total, the slice labels and the legend — so `unit_font_size`
+  can make the unit recede without shrinking the number.
 
 ## Repo layout
 
