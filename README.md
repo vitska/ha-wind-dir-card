@@ -11,6 +11,7 @@ options.
 | ---- | ---- | ------------ |
 | [Wind Direction Card](#wind-direction-card) | `custom:wind-dir-card` | Compass dial with wind direction, average-direction sector, speed and gusts |
 | [Sensor Ex Card](#sensor-ex-card) | `custom:sensor-ex-card` | Sensor readout with label, value, unit and a history graph |
+| [Distribution Ex Card](#distribution-ex-card) | `custom:distribution-ex-card` | Energy flow between solar, grid, battery and home, with animated flow dots |
 
 Registering the single `ha-cards.js` resource makes every card in the
 collection available.
@@ -409,6 +410,129 @@ cards:
 - Long windows are downsampled to 100 points by bucket averaging, so a 30-day
   graph stays as cheap to draw as a 1-hour one.
 
+## Distribution Ex Card
+
+`custom:distribution-ex-card` — an energy distribution diagram in the spirit of
+Home Assistant's built-in `energy-distribution` card, drawn in SVG with the same
+depth of styling options as the other cards here.
+
+Solar, grid, battery and home sit as nodes joined by flow lines, with dots
+animating along each line in the direction power is moving — faster the more
+power it carries. Any node whose entity you leave out is simply not drawn, so a
+solar-only or grid-only setup works fine.
+
+Unlike the built-in card this reads live power entities directly, so it needs no
+energy dashboard configuration and updates in real time rather than hourly.
+
+### How the flows are worked out
+
+Export and battery charging are assumed to be served from solar first, so:
+
+```
+solar -> grid     = grid export
+solar -> battery  = battery charging
+solar -> home     = solar - export - charging   (never below zero)
+grid  -> home     = grid import
+battery -> home   = battery discharging
+home              = the three inflows above, unless home_entity is set
+```
+
+Give grid and battery either as one **signed** entity (`+` import / discharge,
+`-` export / charge) or as a **separate pair** of entities. If your sensor uses
+the opposite sign convention, set `grid_invert` / `battery_invert`.
+
+### Configuration
+
+At least one entity is required.
+
+| Option                      | Required | Description                                                              |
+| --------------------------- | -------- | ------------------------------------------------------------------------ |
+| `type`                       | yes      | `custom:distribution-ex-card`                                             |
+| `solar_entity`               | no       | Solar production power                                                    |
+| `grid_entity`                | no       | Grid power, signed: `+` import, `-` export                                |
+| `grid_import_entity`         | no       | Grid import power (use instead of a signed `grid_entity`)                 |
+| `grid_export_entity`         | no       | Grid export power (use instead of a signed `grid_entity`)                 |
+| `grid_invert`                | no       | Flip the grid sign convention (default `false`)                           |
+| `battery_entity`             | no       | Battery power, signed: `+` discharge, `-` charge                          |
+| `battery_discharge_entity`   | no       | Battery discharge power (use instead of a signed entity)                  |
+| `battery_charge_entity`      | no       | Battery charge power (use instead of a signed entity)                     |
+| `battery_invert`             | no       | Flip the battery sign convention (default `false`)                        |
+| `home_entity`                | no       | Home consumption; computed from the inflows when unset                    |
+| `solar_name` … `home_name`   | no       | Label for each node (defaults: Solar, Grid, Battery, Home)                |
+| `solar_icon` … `home_icon`   | no       | Icon for each node (defaults: solar-power, transmission-tower, battery, home) |
+| `solar_color` … `home_color` | no       | Color per node — also colors the lines leaving it                         |
+| `show_labels`                | no       | Show node labels (default `true`)                                         |
+| `show_values`                | no       | Show node values (default `true`)                                         |
+| `show_icons`                 | no       | Show node icons (default `true`)                                          |
+| `unit`                       | no       | Unit override (default: the first configured entity's own unit)           |
+| `value_precision`            | no       | Decimal places for node values (default `1`)                              |
+| `label_font_size`            | no       | Label font size in px (default `12`)                                      |
+| `value_font_size`            | no       | Value font size in px (default `14`)                                      |
+| `icon_size`                  | no       | Icon size in px (default `24`)                                            |
+| `node_size`                  | no       | Node circle radius in px (default `26`)                                   |
+| `node_stroke_width`          | no       | Node circle outline width in px (default `2`)                             |
+| `node_fill_color`            | no       | Node circle fill (default: transparent)                                   |
+| `line_color`                 | no       | Flow line color (default: the source node's color)                        |
+| `line_width`                 | no       | Flow line width in px (default `2`)                                       |
+| `inactive_opacity`           | no       | Opacity of lines carrying no flow (default `0.25`)                        |
+| `show_flow`                  | no       | Animate the flowing dots (default `true`)                                 |
+| `flow_speed`                 | no       | Animation speed multiplier (default `1`)                                  |
+| `dot_size`                   | no       | Flow dot radius in px (default `3.5`)                                     |
+| `dot_count`                  | no       | Dots per line (default `2`)                                               |
+| `min_flow`                   | no       | Flows at or below this are drawn inactive (default `0`)                   |
+| `card_height`                | no       | Fixed card height in px; unset fills the tile                             |
+| `padding`                    | no       | Padding around the contents in px (default `8`)                           |
+
+### Examples
+
+**Signed entities** — the common case for most inverters:
+
+```yaml
+type: custom:distribution-ex-card
+solar_entity: sensor.solar_power
+grid_entity: sensor.grid_power
+battery_entity: sensor.battery_power
+card_height: 260
+```
+
+**Separate import/export entities**, no battery, with styling:
+
+```yaml
+type: custom:distribution-ex-card
+solar_entity: sensor.pv_power
+grid_import_entity: sensor.grid_import_power
+grid_export_entity: sensor.grid_export_power
+solar_color: "#ffd43b"
+grid_color: "#4dabf7"
+home_color: white
+node_fill_color: "#22222288"
+line_width: 3
+dot_count: 3
+flow_speed: 1.5
+value_precision: 0
+```
+
+**Static diagram** — no animation, dimmer idle lines:
+
+```yaml
+type: custom:distribution-ex-card
+solar_entity: sensor.solar_power
+grid_entity: sensor.grid_power
+show_flow: false
+inactive_opacity: 0.1
+min_flow: 25
+```
+
+### Notes
+
+- Values are shown with the unit of the first configured entity, so the
+  entities should share a unit (all W, or all kW). Use `unit` to override the
+  displayed text.
+- `min_flow` is useful for hiding standby noise: a line at or below it is drawn
+  in `inactive_opacity` with no dots.
+- Dot durations are rounded, so an unrelated state update can't retime a
+  running animation and make the dots jump.
+
 ## Repo layout
 
 Sources live in `src/` as plain ES modules. `build.sh` bundles them into
@@ -420,12 +544,14 @@ Sources live in `src/` as plain ES modules. `build.sh` bundles them into
 | `src/shared.js` | lit re-export plus helpers shared by all cards (entity readers, threshold colours, `ha-form` editor base, unique SVG ids) |
 | `src/wind-dir-card.js` | Wind Direction Card |
 | `src/sensor-ex-card.js` | Sensor Ex Card |
+| `src/distribution-ex-card.js` | Distribution Ex Card |
 
 | Built artifact | Contains |
 | -------------- | -------- |
 | `ha-cards.js` | Every card — the file to install |
 | `wind-dir-card.js` | Just the compass, standalone |
 | `sensor-ex-card.js` | Just the sensor card, standalone |
+| `distribution-ex-card.js` | Just the distribution card, standalone |
 
 Each artifact bundles the shared code, so its only remaining import is lit from
 the CDN. That matters because HACS copies `.js` files into
