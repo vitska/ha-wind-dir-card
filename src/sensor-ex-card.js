@@ -238,8 +238,6 @@ class SensorExCard extends LitElement {
     this._width = DEFAULT_WIDTH;
     this._height = DEFAULT_HEIGHT;
     this._gradientId = uniqueId("sxc-graph-fill");
-    this._lineBandId = uniqueId("sxc-graph-line-bands");
-    this._areaBandId = uniqueId("sxc-graph-area-bands");
   }
 
   static getStubConfig(hass) {
@@ -458,41 +456,71 @@ class SensorExCard extends LitElement {
     return null;
   }
 
-  // Colour stops for banding the graph by value. Because the y axis already
-  // maps value to position, a vertical gradient with hard stops at each band
-  // edge colours the line exactly where it crosses a threshold - no need to
-  // cut the path into pieces. Returns null when no rule defines a graph_color.
-  _graphBands(min, max, fallback) {
+  // Splits the plot along time into runs, each covering the stretch where the
+  // reading sits in one value_format range, and each drawn in that range's
+  // graph_color. Where a segment crosses a boundary it is cut at the exact
+  // crossing rather than at the neighbouring sample, so a run starts and ends
+  // on its threshold. Returns null when no rule sets a graph_color.
+  _bandRuns(points, xOf, yOf, fallback) {
     const rules = Array.isArray(this.config.value_format)
       ? this.config.value_format
       : [];
     if (!rules.some((rule) => rule && rule.graph_color)) return null;
-    if (!(max > min)) return null;
+    if (points.length < 2) return null;
 
-    // Every band edge inside the visible range is a boundary; the ends of the
-    // range close it off.
-    const edges = new Set([min, max]);
-    rules.forEach((rule) => {
-      if (!rule) return;
-      [rule.value_from, rule.value_to].forEach((bound) => {
-        const n = Number(bound);
-        if (Number.isFinite(n) && n > min && n < max) edges.add(n);
-      });
-    });
+    // A colour can only change where a range begins or ends.
+    const bounds = [
+      ...new Set(
+        rules
+          .filter(Boolean)
+          .flatMap((rule) => [rule.value_from, rule.value_to])
+          .map(Number)
+          .filter(Number.isFinite)
+      ),
+    ];
 
-    // Walk top (max) to bottom (min), asking _matchFormat what each slice is,
-    // so gaps and overlaps resolve by exactly the same rules as the readout.
-    const sorted = [...edges].sort((a, b) => b - a);
-    const stops = [];
-    for (let i = 0; i < sorted.length - 1; i += 1) {
-      const hi = sorted[i];
-      const lo = sorted[i + 1];
-      const rule = this._matchFormat((hi + lo) / 2);
-      const color = (rule && rule.graph_color) || fallback;
-      stops.push({ offset: (max - hi) / (max - min), color });
-      stops.push({ offset: (max - lo) / (max - min), color });
+    const colorAt = (value) => {
+      const rule = this._matchFormat(value);
+      return (rule && rule.graph_color) || fallback;
+    };
+
+    const runs = [];
+    let previous = { x: xOf(points[0].t), y: yOf(points[0].v) };
+    const add = (color, point) => {
+      let run = runs[runs.length - 1];
+      if (!run || run.color !== color) {
+        // A new run opens on the previous point, so consecutive runs share a
+        // vertex and their fills tile without a seam.
+        run = { color, points: [previous] };
+        runs.push(run);
+      }
+      run.points.push(point);
+      previous = point;
+    };
+
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const a = points[i];
+      const b = points[i + 1];
+      const lo = Math.min(a.v, b.v);
+      const hi = Math.max(a.v, b.v);
+      const crossings = bounds
+        .filter((v) => v > lo && v < hi)
+        .sort((m, n) => (b.v >= a.v ? m - n : n - m));
+
+      const xa = xOf(a.t);
+      const xb = xOf(b.t);
+      const stops = [a.v, ...crossings, b.v];
+      for (let k = 0; k < stops.length - 1; k += 1) {
+        const from = stops[k];
+        const to = stops[k + 1];
+        // Midpoint of the sub-segment decides its colour, so gaps and overlaps
+        // between rules resolve exactly as they do for the readout.
+        const color = colorAt((from + to) / 2);
+        const t = b.v === a.v ? 1 : (to - a.v) / (b.v - a.v);
+        add(color, { x: xa + t * (xb - xa), y: yOf(to) });
+      }
     }
-    return stops;
+    return runs;
   }
 
   // Splits "19.9" into "19" and ".9" so the fraction can be set smaller. The
@@ -555,73 +583,68 @@ class SensorExCard extends LitElement {
     const fillOpacity = Number.isFinite(Number(this.config.fill_opacity))
       ? Number(this.config.fill_opacity)
       : 0.3;
+    const isArea = this.config.graph_type !== "line";
 
-    const bands = this._graphBands(
-      min,
-      max,
+    const runs = this._bandRuns(
+      points,
+      (t) => rect.left + ((t - tMin) / tSpan) * (rect.right - rect.left),
+      (v) => bottom - ((v - min) / (max - min)) * (bottom - top),
       lineColor || "var(--accent-color, #58a6ff)"
     );
-    // Both gradients run down the plot in user space, so a stop's offset lines
-    // up with the value it was derived from.
-    const bandDefs = bands
-      ? svg`
-          <linearGradient
-            id=${this._lineBandId}
-            gradientUnits="userSpaceOnUse"
-            x1="0" y1=${top} x2="0" y2=${bottom}
-          >
-            ${bands.map(
-              (stop) => svg`<stop offset=${stop.offset} stop-color=${stop.color} />`
-            )}
-          </linearGradient>
-          <linearGradient
-            id=${this._areaBandId}
-            gradientUnits="userSpaceOnUse"
-            x1="0" y1=${top} x2="0" y2=${bottom}
-          >
-            ${bands.map(
-              (stop) => svg`<stop
-                offset=${stop.offset}
-                stop-color=${stop.color}
-                stop-opacity=${fillOpacity}
-              />`
-            )}
-          </linearGradient>
-        `
-      : svg``;
 
-    const area =
-      this.config.graph_type === "line"
-        ? svg``
-        : svg`
-            <path
-              class="area"
-              d="${line} L ${coords[coords.length - 1].x.toFixed(2)} ${rect.bottom} L ${coords[0].x.toFixed(2)} ${rect.bottom} Z"
-              fill=${bands ? `url(#${this._areaBandId})` : `url(#${this._gradientId})`}
-              style=${fillColor ? `color: ${fillColor}` : ""}
-            />
-          `;
-
-    return svg`
-      <defs>
-        ${bandDefs}
-        ${this.config.graph_type === "line"
+    if (runs) {
+      const pathOf = (pts) =>
+        pts
+          .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(2)} ${c.y.toFixed(2)}`)
+          .join(" ");
+      return svg`
+        ${!isArea
           ? svg``
-          : svg`
+          : runs.map(
+              (run) => svg`
+                <path
+                  class="area"
+                  d="${pathOf(run.points)} L ${run.points[run.points.length - 1].x.toFixed(2)} ${rect.bottom} L ${run.points[0].x.toFixed(2)} ${rect.bottom} Z"
+                  fill=${run.color}
+                  fill-opacity=${fillOpacity}
+                />
+              `
+            )}
+        ${runs.map(
+          (run) => svg`
+            <path
+              class="line"
+              d=${pathOf(run.points)}
+              style="stroke-width: ${lineWidth}; stroke: ${run.color}"
+            />
+          `
+        )}
+      `;
+    }
+
+    const area = !isArea
+      ? svg``
+      : svg`
+          <defs>
             <linearGradient id=${this._gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color=${fillColor || "currentColor"} stop-opacity=${fillOpacity} />
               <stop offset="100%" stop-color=${fillColor || "currentColor"} stop-opacity="0" />
             </linearGradient>
-          `}
-      </defs>
+          </defs>
+          <path
+            class="area"
+            d="${line} L ${coords[coords.length - 1].x.toFixed(2)} ${rect.bottom} L ${coords[0].x.toFixed(2)} ${rect.bottom} Z"
+            fill="url(#${this._gradientId})"
+            style=${fillColor ? `color: ${fillColor}` : ""}
+          />
+        `;
+
+    return svg`
       ${area}
       <path
         class="line"
         d=${line}
-        style="stroke-width: ${lineWidth}${
-          bands ? "" : lineColor ? `; stroke: ${lineColor}` : ""
-        }"
-        stroke=${bands ? `url(#${this._lineBandId})` : ""}
+        style="stroke-width: ${lineWidth}${lineColor ? `; stroke: ${lineColor}` : ""}"
       />
     `;
   }

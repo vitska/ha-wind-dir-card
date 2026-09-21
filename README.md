@@ -326,16 +326,24 @@ value_format:
     graph_color: "#ff4136"
 ```
 
-Set it on as few or as many rules as you like — a stretch of the plot with no
-`graph_color` keeps `line_color`. Since the graph's vertical axis already maps
-value to position, the colours are applied as a gradient down the plot with
-hard stops at each boundary, so a crossing is cut exactly at its threshold and
-the shape of the line is untouched.
+The plot is split along time into runs — one per stretch where the reading sits
+in a single range — and each run is drawn entirely in that range's colour, the
+line and the area beneath it alike. A run is cut at the **exact crossing**, not
+at the neighbouring sample, so it starts and ends on its own threshold, and
+consecutive runs share that vertex so their fills tile without a seam.
 
-On an area graph the fill is banded to match, at `fill_opacity`. That replaces
-the usual fade to transparent: the vertical axis can only carry one meaning at
-a time, and here it is carrying the bands. Graphs with no `graph_color` anywhere
-keep the fade.
+```
+            ......
+       ____/######\____
+      |####|######|####|
+      +----+------+----+
+       green  red  green
+```
+
+Set `graph_color` on as few or as many rules as you like — a stretch no rule
+claims keeps `line_color`. On an area graph each run's fill is solid at
+`fill_opacity`, which replaces the usual fade to transparent; graphs with no
+`graph_color` anywhere keep the fade exactly as before.
 
 `value_format` is YAML-only: the visual editor can't edit a list of objects, but
 it leaves the key untouched when you change other options there.

@@ -12,7 +12,7 @@ export {
   svg,
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
 
-export const VERSION = "3.10.0";
+export const VERSION = "3.11.0";
 
 export function fireEvent(node, type, detail) {
   node.dispatchEvent(
