@@ -65,6 +65,10 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 8, max: 120, step: 1, mode: "box" } },
   },
   {
+    name: "decimal_font_size_percent",
+    selector: { "number": { "min": 10, "max": 100, "step": 5, "mode": "box" } },
+  },
+  {
     name: "unit_font_size",
     selector: { number: { min: 6, max: 60, step: 1, mode: "box" } },
   },
@@ -162,6 +166,7 @@ const EDITOR_LABELS = {
   icon_color: "Icon color (CSS color, optional)",
   label_font_size: "Label font size (px)",
   value_font_size: "Value font size (px)",
+  decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
   icon_size: "Icon size (px)",
   color_normal: "Normal value color (CSS color, optional)",
@@ -261,6 +266,7 @@ class SensorExCard extends LitElement {
       label_font_size: 18,
       value_font_size: 40,
       unit_font_size: 14,
+      decimal_font_size_percent: 100,
       icon_size: 24,
       hours_to_show: 24,
       graph_type: "area",
@@ -413,6 +419,16 @@ class SensorExCard extends LitElement {
     return { direction: delta > 0 ? "up" : "down", delta };
   }
 
+  // Splits "19.9" into "19" and ".9" so the fraction can be set smaller. The
+  // separator travels with the fraction, and a value without one (or the "--"
+  // placeholder) comes back whole.
+  _valueParts(text) {
+    const at = text.indexOf(".");
+    return at === -1
+      ? { whole: text, fraction: "" }
+      : { whole: text.slice(0, at), fraction: text.slice(at) };
+  }
+
   _trendSymbol(direction) {
     if (direction === "up") return this.config.trend_up_symbol || "▲";
     if (direction === "down") return this.config.trend_down_symbol || "▼";
@@ -523,6 +539,14 @@ class SensorExCard extends LitElement {
     const unitFontSize = Number(this.config.unit_font_size) || 14;
     const trendFontSize = Number(this.config.trend_font_size) || unitFontSize;
     const trend = this.config.show_trend === false ? null : this._trend();
+    const decimalPercent = Number(this.config.decimal_font_size_percent);
+    const decimalFontSize =
+      Number.isFinite(decimalPercent) && decimalPercent > 0
+        ? (valueFontSize * decimalPercent) / 100
+        : valueFontSize;
+    const valueParts = this._valueParts(
+      value !== null ? value.toFixed(precision) : "--"
+    );
     const iconSize = Number(this.config.icon_size) || 24;
 
     const width = this._width;
@@ -573,7 +597,13 @@ class SensorExCard extends LitElement {
                 <text class="value" x=${left} y=${valueY}>
                   <tspan
                     style="font-size: ${valueFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}"
-                  >${value !== null ? value.toFixed(precision) : "--"}</tspan>
+                  >${valueParts.whole}</tspan>
+                  ${valueParts.fraction
+                    ? svg`<tspan
+                        class="decimal"
+                        style="font-size: ${decimalFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}"
+                      >${valueParts.fraction}</tspan>`
+                    : svg``}
                   ${this.config.show_unit === false || !unit
                     ? svg``
                     : svg`<tspan

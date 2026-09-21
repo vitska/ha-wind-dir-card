@@ -218,6 +218,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `label_font_size`    | no       | Label font size in px (default `18`)                                         |
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
+| `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `100`, i.e. the same size) |
 | `icon_size`          | no       | Icon size in px (default `24`)                                               |
 | `color_normal`       | no       | Value color below any threshold (default: falls back to `value_color`)       |
 | `color_warning`      | no       | Value color at/above `warning_threshold` (default `#ffa600`)                 |
@@ -235,6 +236,21 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `card_height`        | no       | Fixed card height in px. Unset (default) fills the tile, which in a stack means matching the tallest sibling |
 | `padding`            | no       | Padding around the contents in px (default `0`, fills the tile edge-to-edge) |
 | `refresh_interval`   | no       | How often to refetch history, in seconds (default `300`)                     |
+
+**Smaller decimals.** `decimal_font_size_percent` sets the fraction's size as a
+percentage of `value_font_size`, so the digits that matter stay dominant while
+the decimals recede:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.outside_temperature
+value_font_size: 44
+decimal_font_size_percent: 55
+```
+
+The separator travels with the fraction, and both sit on the same baseline. At
+the default `100` nothing changes, and a value with no decimals (or an
+unavailable one showing `--`) is left alone.
 
 ### Examples
 
