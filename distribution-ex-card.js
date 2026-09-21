@@ -229,6 +229,24 @@ var EDITOR_SCHEMA = [
     name: "title_font_size",
     selector: { number: { min: 6, max: 40, step: 1, mode: "box" } }
   },
+  { name: "title_bold", selector: { boolean: {} } },
+  { name: "title_italic", selector: { boolean: {} } },
+  {
+    name: "title_position",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "top", label: "Top" },
+          { value: "bottom", label: "Bottom" }
+        ]
+      }
+    }
+  },
+  {
+    name: "title_padding",
+    selector: { "number": { "min": 0, "max": 40, "step": 1, "mode": "box" } }
+  },
   {
     name: "card_height",
     selector: { number: { min: 40, max: 800, step: 10, mode: "box" } }
@@ -274,6 +292,10 @@ var EDITOR_LABELS = {
   legend_swatch_size: "Legend swatch size (px)",
   title_color: "Title color",
   title_font_size: "Title font size (px)",
+  title_bold: "Bold title",
+  title_italic: "Italic title",
+  title_position: "Title placement",
+  title_padding: "Space around the title (px)",
   card_height: "Card height (px, unset = fits its content)",
   padding: "Padding around contents (px)"
 };
@@ -337,6 +359,8 @@ var DistributionExCard = class extends LitElement2 {
       legend_font_size: 13,
       legend_swatch_size: 10,
       title_font_size: 16,
+      title_position: "top",
+      title_padding: 0,
       padding: 12,
       ...config
     };
@@ -713,14 +737,17 @@ var DistributionExCard = class extends LitElement2 {
     const padding = Number.isFinite(Number(config.padding)) ? Number(config.padding) : 12;
     const legendFontSize = Number(config.legend_font_size) || 13;
     const swatch = Number(config.legend_swatch_size) || 10;
+    const titleAtTop = config.title_position !== "bottom";
+    const titlePadding = Number.isFinite(Number(config.title_padding)) ? Number(config.title_padding) : 0;
+    const titleEl = config.title ? html2`<div
+          class="title"
+          style="font-size: ${Number(config.title_font_size) || 16}px; font-weight: ${config.title_bold ? 700 : 500}; font-style: ${config.title_italic ? "italic" : "normal"}; padding: ${titlePadding}px${config.title_color ? `; color: ${config.title_color}` : ""}"
+        >${config.title}</div>` : "";
     return html2`
       <ha-card>
         <div class="root" style="padding: ${padding}px">
-          ${config.title || config.show_total && config.total_position === "top" ? html2`<div class="header">
-                ${config.title ? html2`<div
-                      class="title"
-                      style="font-size: ${Number(config.title_font_size) || 16}px${config.title_color ? `; color: ${config.title_color}` : ""}"
-                    >${config.title}</div>` : html2`<span></span>`}
+          ${config.title && titleAtTop || config.show_total && config.total_position === "top" ? html2`<div class="header">
+                ${config.title && titleAtTop ? titleEl : html2`<span></span>`}
                 ${config.show_total && config.total_position === "top" ? html2`<div
                       class="total"
                       style="font-size: ${Number(config.total_font_size) || 16}px${config.total_color ? `; color: ${config.total_color}` : ""}"
@@ -771,6 +798,7 @@ var DistributionExCard = class extends LitElement2 {
                 ${config.total_label ? html2`<span class="total-label">${config.total_label}</span>` : ""}
                 <span class="total-value">${this._formatTotal(items, total)}</span>
               </div>` : ""}
+          ${config.title && !titleAtTop ? titleEl : ""}
         </div>
       </ha-card>
     `;
@@ -800,7 +828,6 @@ var DistributionExCard = class extends LitElement2 {
       }
       .title {
         color: var(--primary-text-color, #fff);
-        font-weight: 500;
       }
       .total {
         color: var(--primary-text-color, #fff);

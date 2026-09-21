@@ -607,6 +607,10 @@ palette wholesale.
 | `legend_swatch_size` | no | Legend swatch size in px (default `10`) |
 | `title_font_size` | no | Title font size in px (default `16`) |
 | `title_color` | no | Title color |
+| `title_bold` | no | Embolden the title (default `false`) |
+| `title_italic` | no | Italicise the title (default `false`) |
+| `title_position` | no | `top` (default) or `bottom` |
+| `title_padding` | no | Space around the title in px (default `0`) |
 | `card_height` | no | Fixed height in px; unset fits the content |
 | `padding` | no | Padding around the contents in px (default `12`) |
 
