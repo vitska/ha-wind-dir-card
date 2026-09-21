@@ -587,11 +587,11 @@ palette wholesale.
 | `value_color` | no | Segment label color (default white) |
 | `aside_font_size` | no | Font size of the labels beside a vertical bar (default `16`) |
 | `unit_font_size` | no | Unit font size in px (default: the same size as its value) |
-| `name_column_width` | no | Width of the name column beside a vertical bar (default: sized from `aside_font_size`, `0` when nothing is named) |
+| `name_column_width` | no | Width of the name column beside a vertical bar (default: measured from the longest name, `0` when nothing is named) |
 | `show_leaders` | no | Draw leader lines from a vertical bar to its labels (default `true`) |
 | `leader_color` | no | Leader line color (default: the value's colour) |
 | `leader_width` | no | Leader line width in px (default `1`) |
-| `leader_length` | no | Distance from the bar to its label column in px (default `18`) |
+| `leader_length` | no | Length of the rod from the bar to its labels in px (default `12`) |
 | `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
 | `show_total` | no | Show the sum of the visible slices (default `false`) |
 | `total_label` | no | Text before the total (default `Total`; set `""` for none) |
@@ -679,10 +679,11 @@ callout text independently of the percentages inside the bar, which use
 number it follows.
 
 Names and values occupy **separate columns**, so the numbers line up with each
-other and with the total no matter how long the names are. The column is only
-reserved when something is actually written in it — with no names and no
-`total_label` the values sit straight after the leader. `name_column_width`
-overrides its width.
+other and with the total no matter how long the names are. The column is
+measured from the longest name that will actually be drawn, so it takes only
+the room it needs and collapses to nothing when there are no names and no
+`total_label` — the values then sit immediately after the rods.
+`name_column_width` overrides it, and `0` removes it entirely.
 
 A slice too short for its percentage to fit simply doesn't get one, and
 `min_label_percent` suppresses both the percentage and the callout for slivers.

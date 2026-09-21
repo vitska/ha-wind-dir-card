@@ -252,7 +252,7 @@ class DistributionExCard extends LitElement {
       aside_font_size: 16,
       show_leaders: true,
       leader_width: 1,
-      leader_length: 18,
+      leader_length: 12,
       min_label_percent: 8,
       show_total: false,
       total_label: "Total",
@@ -459,26 +459,37 @@ class DistributionExCard extends LitElement {
     const showLeaders = config.show_leaders !== false;
     const leaderLength = Number.isFinite(Number(config.leader_length))
       ? Number(config.leader_length)
-      : 18;
+      : 12;
     // Rods read as part of the readout they point at, so they take the value's
     // colour unless told otherwise.
     const leaderColor =
       config.leader_color || config.value_color || "var(--primary-text-color, #fff)";
     const leaderWidth = Number(config.leader_width) || 1;
 
-    const bracketX1 = thickness + 4;
-    const bracketX2 = bracketX1 + (showLeaders ? 6 : 0);
-    const labelX = bracketX2 + (showLeaders ? leaderLength : 8) + 4;
+    const bracketX1 = thickness + 3;
+    const bracketX2 = bracketX1 + (showLeaders ? 5 : 0);
+    const labelX = bracketX2 + (showLeaders ? leaderLength : 6) + 4;
 
-    // Names and values get their own columns. Without this the values start
-    // wherever each name happens to end, so they - and the total - never line
-    // up. The column only exists when something is actually written in it.
+    // Names and values get their own columns, so the values - and the total -
+    // line up however long the names are. The column is measured from the text
+    // that will actually be written in it, rather than reserved at a fixed
+    // width, so it collapses to nothing when there are no names and does not
+    // push the values away from the bar.
     const namesShown = config.show_segment_names !== false;
-    const anyName = namesShown || Boolean(config.total_label);
+    const written = [
+      ...(namesShown ? visible.map((item) => item.name) : []),
+      config.total_label,
+    ].filter((text) => text !== undefined && text !== null && text !== "");
+    const longest = written.reduce(
+      (max, text) => Math.max(max, String(text).length),
+      0
+    );
     const nameColumn = Number.isFinite(Number(config.name_column_width))
       ? Number(config.name_column_width)
-      : anyName
-        ? asideFontSize * 3.4
+      // ~0.58em per character is close enough for the UI faces in play; the
+      // column only has to clear the name, not fit it exactly.
+      : longest
+        ? longest * asideFontSize * 0.58 + 8
         : 0;
     const valueX = labelX + nameColumn;
     // A rod has to stop just before whatever is actually written on its row.

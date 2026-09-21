@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.12.0";
+var VERSION = "3.12.1";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1631,7 +1631,7 @@ var DistributionExCard = class extends LitElement2 {
       aside_font_size: 16,
       show_leaders: true,
       leader_width: 1,
-      leader_length: 18,
+      leader_length: 12,
       min_label_percent: 8,
       show_total: false,
       total_label: "Total",
@@ -1808,15 +1808,22 @@ var DistributionExCard = class extends LitElement2 {
     const config = this.config;
     const asideFontSize = Number(config.aside_font_size) || 16;
     const showLeaders = config.show_leaders !== false;
-    const leaderLength = Number.isFinite(Number(config.leader_length)) ? Number(config.leader_length) : 18;
+    const leaderLength = Number.isFinite(Number(config.leader_length)) ? Number(config.leader_length) : 12;
     const leaderColor = config.leader_color || config.value_color || "var(--primary-text-color, #fff)";
     const leaderWidth = Number(config.leader_width) || 1;
-    const bracketX1 = thickness + 4;
-    const bracketX2 = bracketX1 + (showLeaders ? 6 : 0);
-    const labelX = bracketX2 + (showLeaders ? leaderLength : 8) + 4;
+    const bracketX1 = thickness + 3;
+    const bracketX2 = bracketX1 + (showLeaders ? 5 : 0);
+    const labelX = bracketX2 + (showLeaders ? leaderLength : 6) + 4;
     const namesShown = config.show_segment_names !== false;
-    const anyName = namesShown || Boolean(config.total_label);
-    const nameColumn = Number.isFinite(Number(config.name_column_width)) ? Number(config.name_column_width) : anyName ? asideFontSize * 3.4 : 0;
+    const written = [
+      ...namesShown ? visible.map((item) => item.name) : [],
+      config.total_label
+    ].filter((text) => text !== void 0 && text !== null && text !== "");
+    const longest = written.reduce(
+      (max, text) => Math.max(max, String(text).length),
+      0
+    );
+    const nameColumn = Number.isFinite(Number(config.name_column_width)) ? Number(config.name_column_width) : longest ? longest * asideFontSize * 0.58 + 8 : 0;
     const valueX = labelX + nameColumn;
     const textX = namesShown ? labelX : valueX;
     const width = this._width;
