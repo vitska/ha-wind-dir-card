@@ -81,9 +81,9 @@ The card resizes to fill whatever tile it's given (e.g. one column of a
 
 ![Wind direction card screenshot](screenshot.png)
 
-Shown here in a dashboard alongside other sensor cards:
+Shown here in a dashboard beside several Sensor Ex Cards:
 
-![Wind direction card in a dashboard](screenshot-dashboard.png)
+![The cards in a dashboard](screenshot-dashboard.png)
 
 ### Configuration
 
@@ -183,6 +183,13 @@ card, drawn in SVG so every part is styleable:
 Text and graph are drawn at the card's real pixel size, so nothing is stretched
 or distorted whatever tile shape it lands in. With `padding: 0` (the default)
 the graph runs edge to edge.
+
+![Sensor Ex Cards in a dashboard](screenshot-dashboard.png)
+
+The six sensor cards above show most of what the card can do: the compact row
+along the top uses smaller decimals, trend arrows and `value_format` — note the
+pressure card, whose graph is banded by `graph_color` — while the row along the
+bottom keeps labels and icons with a plain graph.
 
 ### Configuration
 
