@@ -217,6 +217,8 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `icon_color`         | no       | CSS color for the icon (default: theme icon color)                           |
 | `label_font_size`    | no       | Label font size in px (default `18`)                                         |
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
+| `value_font_weight`  | no       | Value font weight (default `normal`, matching the built-in sensor card)      |
+| `value_margin`       | no       | Extra space above the label/value block in px (default `0`; negatives pull it up) |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
 | `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `100`, i.e. the same size) |
 | `icon_size`          | no       | Icon size in px (default `24`)                                               |
@@ -251,6 +253,16 @@ decimal_font_size_percent: 55
 The separator travels with the fraction, and both sit on the same baseline. At
 the default `100` nothing changes, and a value with no decimals (or an
 unavailable one showing `--`) is left alone.
+
+**Matching the built-in sensor card.** The text inherits your theme's font, and
+the value renders at **normal weight** — Home Assistant's own sensor card sets
+only a size on its value, so weighting it bold is what makes a custom card look
+different. Use `value_font_weight: bold` (or a number) if you want it heavier.
+
+Text is positioned from its cap height, so at `padding: 0` and the default
+`value_margin: 0` the glyphs start flush against the card edge with no
+inherited gap. `value_margin` nudges the whole label/value block, and accepts
+negatives to pull it up the way the built-in card does.
 
 ### Examples
 

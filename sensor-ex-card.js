@@ -108,6 +108,7 @@ function defineEditor(tag, schema, labels) {
 var DEFAULT_WIDTH = 300;
 var DEFAULT_HEIGHT = 120;
 var MAX_POINTS = 100;
+var CAP_RATIO = 0.72;
 var EDITOR_SCHEMA = [
   { name: "entity", selector: { entity: {} } },
   { name: "name", selector: { text: {} } },
@@ -152,6 +153,11 @@ var EDITOR_SCHEMA = [
   {
     name: "value_font_size",
     selector: { number: { min: 8, max: 120, step: 1, mode: "box" } }
+  },
+  { name: "value_font_weight", selector: { text: {} } },
+  {
+    name: "value_margin",
+    selector: { "number": { "min": -40, "max": 60, "step": 1, "mode": "box" } }
   },
   {
     name: "decimal_font_size_percent",
@@ -254,6 +260,8 @@ var EDITOR_LABELS = {
   icon_color: "Icon color (CSS color, optional)",
   label_font_size: "Label font size (px)",
   value_font_size: "Value font size (px)",
+  value_font_weight: "Value font weight (default normal, as the built-in card)",
+  value_margin: "Extra space above the text block (px)",
   decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
   icon_size: "Icon size (px)",
@@ -342,6 +350,7 @@ var SensorExCard = class extends LitElement2 {
       value_font_size: 40,
       unit_font_size: 14,
       decimal_font_size_percent: 100,
+      value_margin: 0,
       icon_size: 24,
       hours_to_show: 24,
       graph_type: "area",
@@ -584,12 +593,17 @@ var SensorExCard = class extends LitElement2 {
       bottom
     };
     const showLabel = this.config.show_label !== false;
-    const labelY = top + labelFontSize * 0.8;
-    const valueTop = showLabel ? top + labelFontSize * 1.1 : top;
-    const valueY = valueTop + valueFontSize * 0.8;
+    const margin = Number.isFinite(Number(this.config.value_margin)) ? Number(this.config.value_margin) : 0;
+    const textTop = top + margin;
+    const labelY = textTop + labelFontSize * CAP_RATIO;
+    const valueTop = showLabel ? textTop + labelFontSize * 1.05 : textTop;
+    const valueY = valueTop + valueFontSize * CAP_RATIO;
     return html2`
       <ha-card>
-        <div class="root" style=${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px`}>
+        <div
+          class="root"
+          style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}"
+        >
           <svg viewBox="0 0 ${width} ${height}" width=${width} height=${height}>
             ${showGraph ? this._renderGraph(graphRect) : svg``}
             ${!showLabel ? svg`` : svg`
@@ -657,6 +671,9 @@ var SensorExCard = class extends LitElement2 {
         display: block;
         width: 100%;
         height: 100%;
+        /* Inherit the theme's face, so the card matches the built-in sensor
+           card instead of falling back to the SVG default. */
+        font-family: inherit;
       }
       .icon {
         position: absolute;
@@ -666,9 +683,11 @@ var SensorExCard = class extends LitElement2 {
       .label {
         fill: var(--secondary-text-color, #9e9e9e);
       }
+      /* The built-in sensor card sets only a size on its value, so it renders
+         at normal weight; matching that is what makes the two look alike. */
       .value {
         fill: var(--primary-text-color, #fff);
-        font-weight: 700;
+        font-weight: var(--sxc-value-weight, normal);
       }
       .unit {
         fill: var(--secondary-text-color, #9e9e9e);

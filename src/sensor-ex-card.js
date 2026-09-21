@@ -18,6 +18,9 @@ const DEFAULT_HEIGHT = 120;
 // Sparkline detail beyond this is invisible, and recorder can return thousands
 // of points for a long window.
 const MAX_POINTS = 100;
+// Cap height of the usual UI faces, as a fraction of the em size. Used to put
+// glyph tops at a known y when positioning off the alphabetic baseline.
+const CAP_RATIO = 0.72;
 
 const EDITOR_SCHEMA = [
   { name: "entity", selector: { entity: {} } },
@@ -63,6 +66,11 @@ const EDITOR_SCHEMA = [
   {
     name: "value_font_size",
     selector: { number: { min: 8, max: 120, step: 1, mode: "box" } },
+  },
+  { name: "value_font_weight", selector: { text: {} } },
+  {
+    name: "value_margin",
+    selector: { "number": { "min": -40, "max": 60, "step": 1, "mode": "box" } },
   },
   {
     name: "decimal_font_size_percent",
@@ -166,6 +174,8 @@ const EDITOR_LABELS = {
   icon_color: "Icon color (CSS color, optional)",
   label_font_size: "Label font size (px)",
   value_font_size: "Value font size (px)",
+  value_font_weight: "Value font weight (default normal, as the built-in card)",
+  value_margin: "Extra space above the text block (px)",
   decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
   icon_size: "Icon size (px)",
@@ -267,6 +277,7 @@ class SensorExCard extends LitElement {
       value_font_size: 40,
       unit_font_size: 14,
       decimal_font_size_percent: 100,
+      value_margin: 0,
       icon_size: 24,
       hours_to_show: 24,
       graph_type: "area",
@@ -568,17 +579,25 @@ class SensorExCard extends LitElement {
       bottom,
     };
 
-    // <text y> is the baseline; ascent is roughly 0.8em, so offset by that to
-    // sit the glyph tops at the intended y. With the label hidden the value
-    // takes over its slot rather than leaving a gap.
+    // <text y> is the alphabetic baseline, so the glyph tops land CAP_RATIO em
+    // above it. Keeping the alphabetic baseline (rather than a top-edge one) is
+    // what lets the unit and trend sit on the value's baseline instead of
+    // floating at its top. With the label hidden the value takes over its slot.
     const showLabel = this.config.show_label !== false;
-    const labelY = top + labelFontSize * 0.8;
-    const valueTop = showLabel ? top + labelFontSize * 1.1 : top;
-    const valueY = valueTop + valueFontSize * 0.8;
+    const margin = Number.isFinite(Number(this.config.value_margin))
+      ? Number(this.config.value_margin)
+      : 0;
+    const textTop = top + margin;
+    const labelY = textTop + labelFontSize * CAP_RATIO;
+    const valueTop = showLabel ? textTop + labelFontSize * 1.05 : textTop;
+    const valueY = valueTop + valueFontSize * CAP_RATIO;
 
     return html`
       <ha-card>
-        <div class="root" style=${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px`}>
+        <div
+          class="root"
+          style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}"
+        >
           <svg viewBox="0 0 ${width} ${height}" width=${width} height=${height}>
             ${showGraph ? this._renderGraph(graphRect) : svg``}
             ${!showLabel
@@ -661,6 +680,9 @@ class SensorExCard extends LitElement {
         display: block;
         width: 100%;
         height: 100%;
+        /* Inherit the theme's face, so the card matches the built-in sensor
+           card instead of falling back to the SVG default. */
+        font-family: inherit;
       }
       .icon {
         position: absolute;
@@ -670,9 +692,11 @@ class SensorExCard extends LitElement {
       .label {
         fill: var(--secondary-text-color, #9e9e9e);
       }
+      /* The built-in sensor card sets only a size on its value, so it renders
+         at normal weight; matching that is what makes the two look alike. */
       .value {
         fill: var(--primary-text-color, #fff);
-        font-weight: 700;
+        font-weight: var(--sxc-value-weight, normal);
       }
       .unit {
         fill: var(--secondary-text-color, #9e9e9e);
