@@ -541,6 +541,11 @@ Select a segment to open that entity's more-info dialog; select a legend item to
 hide or show its slice, and the rest rescale to fill the bar. `show_total: true`
 adds the sum of the visible slices as a labelled row along the bottom.
 
+![Distribution Ex Card](screenshot-distribution.png)
+
+Shown here vertically: percentages inside the barrel-shaded segments, values
+called out on rods beside them, and the total hanging off the foot of the bar.
+
 ```yaml
 type: custom:distribution-ex-card
 title: Power distribution
