@@ -460,8 +460,10 @@ class DistributionExCard extends LitElement {
     const leaderLength = Number.isFinite(Number(config.leader_length))
       ? Number(config.leader_length)
       : 18;
+    // Rods read as part of the readout they point at, so they take the value's
+    // colour unless told otherwise.
     const leaderColor =
-      config.leader_color || "var(--divider-color, rgba(127,127,127,0.55))";
+      config.leader_color || config.value_color || "var(--primary-text-color, #fff)";
     const leaderWidth = Number(config.leader_width) || 1;
 
     const bracketX1 = thickness + 4;
@@ -479,6 +481,10 @@ class DistributionExCard extends LitElement {
         ? asideFontSize * 3.4
         : 0;
     const valueX = labelX + nameColumn;
+    // A rod has to stop just before whatever is actually written on its row.
+    // Aiming at labelX left a gap the width of the name column whenever that
+    // column was reserved but the row had no name in it.
+    const textX = namesShown ? labelX : valueX;
 
     const width = this._width;
     const height = this._barHeight;
@@ -554,7 +560,7 @@ class DistributionExCard extends LitElement {
                   ? svg`
                     <path
                       class="leader"
-                      d="M ${bracketX1} ${start} L ${bracketX2} ${start} L ${bracketX2} ${start + drawn} L ${bracketX1} ${start + drawn} M ${bracketX2} ${mid} L ${labelX - 4} ${mid}"
+                      d="M ${bracketX1} ${start} L ${bracketX2} ${start} L ${bracketX2} ${start + drawn} L ${bracketX1} ${start + drawn} M ${bracketX2} ${mid} L ${textX - 4} ${mid}"
                       fill="none"
                       stroke=${leaderColor}
                       stroke-width=${leaderWidth}
@@ -594,7 +600,9 @@ class DistributionExCard extends LitElement {
               ? svg`
                 <path
                   class="leader"
-                  d="M ${bracketX2} ${length} L ${bracketX2} ${totalY} L ${labelX - 4} ${totalY}"
+                  d="M ${bracketX2} ${length} L ${bracketX2} ${totalY} L ${
+                    (config.total_label ? labelX : valueX) - 4
+                  } ${totalY}"
                   fill="none"
                   stroke=${leaderColor}
                   stroke-width=${leaderWidth}

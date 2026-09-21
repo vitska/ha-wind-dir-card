@@ -589,7 +589,7 @@ palette wholesale.
 | `unit_font_size` | no | Unit font size in px (default: the same size as its value) |
 | `name_column_width` | no | Width of the name column beside a vertical bar (default: sized from `aside_font_size`, `0` when nothing is named) |
 | `show_leaders` | no | Draw leader lines from a vertical bar to its labels (default `true`) |
-| `leader_color` | no | Leader line color |
+| `leader_color` | no | Leader line color (default: the value's colour) |
 | `leader_width` | no | Leader line width in px (default `1`) |
 | `leader_length` | no | Distance from the bar to its label column in px (default `18`) |
 | `min_label_percent` | no | Skip labels on slices below this share (default `8`) |
@@ -665,6 +665,10 @@ entities:
 | `value` (default) | — | the value |
 | `percent` | the percentage | — |
 | `both` | the percentage | the value |
+
+Leader lines take the value's colour by default, so a rod reads as part of the
+readout it points at, and each stops just short of whatever is written on its
+row — the name when names are shown, the value when they are not.
 
 Add `show_segment_names: true` to prefix each callout with the entity's name,
 and `total_label` to prefix the total. Leader lines are on by default —
