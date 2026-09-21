@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.8.1";
+var VERSION = "3.9.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1076,6 +1076,25 @@ var SensorExCard = class extends LitElement2 {
     if (Math.abs(delta) <= deadband) return { direction: "flat", delta };
     return { direction: delta > 0 ? "up" : "down", delta };
   }
+  // Ranges are half-open - value_from <= value < value_to - so contiguous
+  // rules like 0-10 and 10-20 cannot both claim 10. Either bound may be
+  // omitted to leave that end open, and the first matching rule wins, so order
+  // decides when rules do overlap.
+  _matchFormat(value) {
+    if (value === null) return null;
+    const rules = Array.isArray(this.config.value_format) ? this.config.value_format : [];
+    for (const rule of rules) {
+      if (!rule) continue;
+      const from = Number(rule.value_from);
+      const to = Number(rule.value_to);
+      const hasFrom = rule.value_from !== void 0 && rule.value_from !== null && rule.value_from !== "" && Number.isFinite(from);
+      const hasTo = rule.value_to !== void 0 && rule.value_to !== null && rule.value_to !== "" && Number.isFinite(to);
+      if (hasFrom && value < from) continue;
+      if (hasTo && value >= to) continue;
+      return rule;
+    }
+    return null;
+  }
   // Splits "19.9" into "19" and ".9" so the fraction can be set smaller. The
   // separator travels with the fraction, and a value without one (or the "--"
   // placeholder) comes back whole.
@@ -1159,9 +1178,10 @@ var SensorExCard = class extends LitElement2 {
       this.config.warning_threshold,
       this.config.danger_threshold
     );
-    const valueColor = levelColor(this.config, level) || this.config.value_color || "";
+    const format = this._matchFormat(value) || {};
+    const valueColor = format.color || levelColor(this.config, level) || this.config.value_color || "";
     const labelFontSize = Number(this.config.label_font_size) || 18;
-    const valueFontSize = Number(this.config.value_font_size) || 40;
+    const valueFontSize = Number(format.value_font_size) || Number(this.config.value_font_size) || 40;
     const unitFontSize = Number(this.config.unit_font_size) || 14;
     const trendFontSize = Number(this.config.trend_font_size) || unitFontSize;
     const trend = this.config.show_trend === false ? null : this._trend();
@@ -1196,7 +1216,7 @@ var SensorExCard = class extends LitElement2 {
     const valueTop = showLabel ? textTop + labelFontSize * 1.05 : textTop;
     const valueY = valueTop + valueFontSize * CAP_RATIO;
     return html2`
-      <ha-card>
+      <ha-card style=${format.background ? `background: ${format.background}` : ""}>
         <div
           class="root"
           style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}"

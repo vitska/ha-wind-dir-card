@@ -219,6 +219,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
 | `value_font_weight`  | no       | Value font weight (default `normal`, matching the built-in sensor card)      |
 | `value_margin`       | no       | Extra space above the label/value block in px (default `0`; negatives pull it up) |
+| `value_format`       | no       | List of value-range formatting rules (see below)                             |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
 | `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `100`, i.e. the same size) |
 | `icon_size`          | no       | Icon size in px (default `24`)                                               |
@@ -263,6 +264,51 @@ Text is positioned from its cap height, so at `padding: 0` and the default
 `value_margin: 0` the glyphs start flush against the card edge with no
 inherited gap. `value_margin` nudges the whole label/value block, and accepts
 negatives to pull it up the way the built-in card does.
+
+### Value-controlled formatting
+
+`value_format` takes any number of rules, each restyling the card while the
+reading falls in its range:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.cpu_temperature
+value_format:
+  - value_to: 50
+    color: "#4caf50"
+  - value_from: 50
+    value_to: 70
+    color: "#ffa600"
+    value_font_size: 46
+  - value_from: 70
+    color: white
+    background: "#8b1a1a"
+    value_font_size: 52
+```
+
+| Key | Effect |
+| --- | ------ |
+| `value_from` | Lower bound, **inclusive**. Omit to leave the low end open |
+| `value_to` | Upper bound, **exclusive**. Omit to leave the high end open |
+| `color` | Colour of the value |
+| `background` | Background of the whole card |
+| `value_font_size` | Font size of the value, in px |
+
+Ranges are half-open (`value_from <= value < value_to`), so neighbouring rules
+like `0`–`10` and `10`–`20` can be written back to back without both claiming
+`10`. Where rules do overlap the **first match wins**, so order them from most
+to least specific. A rule may set any subset of the three style keys; anything
+it leaves out keeps the card's own setting, so a rule with only a `color`
+changes nothing else.
+
+A matching rule outranks `color_warning` / `color_danger`, being the more
+specific instruction. When no rule matches — including when the entity is
+unavailable — the card falls back to the threshold colours and then to
+`value_color`. `decimal_font_size_percent` is applied to whichever size ends up
+in force, so the decimals stay in proportion.
+
+`value_format` is YAML-only: the visual editor can't edit a list of objects, but
+it leaves the key untouched when you change other options there.
 
 ### Examples
 
