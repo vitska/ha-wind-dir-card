@@ -69,6 +69,10 @@ const EDITOR_SCHEMA = [
   },
   { name: "value_font_weight", selector: { text: {} } },
   {
+    name: "blink_interval",
+    selector: { "number": { "min": 200, "max": 2000, "step": 50, "mode": "box" } },
+  },
+  {
     name: "value_margin",
     selector: { "number": { "min": -40, "max": 60, "step": 1, "mode": "box" } },
   },
@@ -175,6 +179,7 @@ const EDITOR_LABELS = {
   label_font_size: "Label font size (px)",
   value_font_size: "Value font size (px)",
   value_font_weight: "Value font weight (default normal, as the built-in card)",
+  blink_interval: "Blink interval for value_format rules with blink (ms)",
   value_margin: "Extra space above the text block (px)",
   decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
@@ -278,6 +283,7 @@ class SensorExCard extends LitElement {
       unit_font_size: 14,
       decimal_font_size_percent: 100,
       value_margin: 0,
+      blink_interval: 250,
       icon_size: 24,
       hours_to_show: 24,
       graph_type: "area",
@@ -690,6 +696,10 @@ class SensorExCard extends LitElement {
       Number.isFinite(decimalPercent) && decimalPercent > 0
         ? (valueFontSize * decimalPercent) / 100
         : valueFontSize;
+    // Floored at 200ms: a blink faster than about three flashes a second is a
+    // photosensitivity hazard, and 250ms on/off is two a second.
+    const blinkInterval = Math.max(200, Number(this.config.blink_interval) || 250);
+    const blinking = format.blink === true;
     const valueParts = this._valueParts(
       value !== null ? value.toFixed(precision) : "--"
     );
@@ -757,7 +767,7 @@ class SensorExCard extends LitElement {
       <ha-card style=${format.background ? `background: ${format.background}` : ""}>
         <div
           class="root"
-          style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}"
+          style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}; --sxc-blink-period: ${blinkInterval * 2}ms"
         >
           <svg viewBox="0 0 ${width} ${height}" width=${width} height=${height}>
             ${showGraph ? this._renderGraph(graphRect) : svg``}
@@ -774,7 +784,11 @@ class SensorExCard extends LitElement {
             ${this.config.show_value === false
               ? svg``
               : svg`
-                <text class="value" x=${left} y=${valueY}>${valueTspans}</text>
+                <text
+                  class="value${blinking ? " blink" : ""}"
+                  x=${left}
+                  y=${valueY}
+                >${valueTspans}</text>
               `}
           </svg>
           ${this.config.show_icon === false
@@ -838,6 +852,29 @@ class SensorExCard extends LitElement {
       .unit {
         fill: var(--secondary-text-color, #9e9e9e);
         font-weight: 400;
+      }
+      /* One period is on then off, so the configured interval is how long the
+         value spends in each state. Hard edges, no fade - it is meant to catch
+         the eye, not pulse. */
+      @keyframes sxc-blink {
+        0%,
+        49.9% {
+          opacity: 1;
+        }
+        50%,
+        100% {
+          opacity: 0;
+        }
+      }
+      .blink {
+        animation: sxc-blink var(--sxc-blink-period, 500ms) infinite;
+      }
+      /* Flashing content is a known trigger, so anyone asking for reduced
+         motion gets the value held steady instead. */
+      @media (prefers-reduced-motion: reduce) {
+        .blink {
+          animation: none;
+        }
       }
       .trend {
         fill: var(--secondary-text-color, #9e9e9e);

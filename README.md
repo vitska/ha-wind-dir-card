@@ -226,6 +226,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
 | `value_font_weight`  | no       | Value font weight (default `normal`, matching the built-in sensor card)      |
 | `value_margin`       | no       | Extra space above the label/value block in px (default `0`; negatives pull it up) |
+| `blink_interval`     | no       | How long the readout spends visible, then hidden, in ms (default `250`, floor `200`) |
 | `value_format`       | no       | List of value-range formatting rules (see below)                             |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
 | `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `100`, i.e. the same size) |
@@ -292,6 +293,7 @@ value_format:
     background: "#8b1a1a"
     value_font_size: 52
     graph_color: "#ff4136"
+    blink: true
 ```
 
 | Key | Effect |
@@ -302,6 +304,7 @@ value_format:
 | `background` | Background of the whole card |
 | `value_font_size` | Font size of the value, in px |
 | `graph_color` | Colour of the graph wherever it is in this range |
+| `blink` | Blink the readout while the value is in this range |
 
 Ranges are half-open (`value_from <= value < value_to`), so neighbouring rules
 like `0`–`10` and `10`–`20` can be written back to back without both claiming
@@ -351,6 +354,15 @@ Set `graph_color` on as few or as many rules as you like — a stretch no rule
 claims keeps `line_color`. On an area graph each run's fill is solid at
 `fill_opacity`, which replaces the usual fade to transparent; graphs with no
 `graph_color` anywhere keep the fade exactly as before.
+
+**Blinking.** `blink: true` on a rule flashes the readout while the value is in
+that range — the number, its decimals, the unit and the trend arrow together, so
+they stay in step. `blink_interval` sets how long it spends visible and then
+hidden, 250ms each way by default.
+
+The interval is floored at 200ms. Anything faster than roughly three flashes a
+second is a photosensitivity hazard, and viewers who ask their system for
+reduced motion get the value held steady instead of flashing at all.
 
 `value_format` is YAML-only: the visual editor can't edit a list of objects, but
 it leaves the key untouched when you change other options there.
