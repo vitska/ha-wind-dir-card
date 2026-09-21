@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.8.0";
+var VERSION = "3.8.1";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1170,6 +1170,7 @@ var SensorExCard = class extends LitElement2 {
     const valueParts = this._valueParts(
       value !== null ? value.toFixed(precision) : "--"
     );
+    const valueTspans = svg`<tspan style="font-size: ${valueFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}">${valueParts.whole}</tspan>${valueParts.fraction ? svg`<tspan class="decimal" style="font-size: ${decimalFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}">${valueParts.fraction}</tspan>` : svg``}${this.config.show_unit === false || !unit ? svg`` : svg`<tspan class="unit" dx="4" style="font-size: ${unitFontSize}px${this.config.unit_color ? `; fill: ${this.config.unit_color}` : ""}">${unit}</tspan>`}${!trend ? svg`` : svg`<tspan class="trend" dx="6" style="font-size: ${trendFontSize}px${this._trendColor(trend.direction) ? `; fill: ${this._trendColor(trend.direction)}` : ""}">${this._trendSymbol(trend.direction)}</tspan>`}`;
     const iconSize = Number(this.config.icon_size) || 24;
     const width = this._width;
     const height = this._height;
@@ -1211,25 +1212,7 @@ var SensorExCard = class extends LitElement2 {
                 >${label}</text>
               `}
             ${this.config.show_value === false ? svg`` : svg`
-                <text class="value" x=${left} y=${valueY}>
-                  <tspan
-                    style="font-size: ${valueFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}"
-                  >${valueParts.whole}</tspan>
-                  ${valueParts.fraction ? svg`<tspan
-                        class="decimal"
-                        style="font-size: ${decimalFontSize}px${valueColor ? `; fill: ${valueColor}` : ""}"
-                      >${valueParts.fraction}</tspan>` : svg``}
-                  ${this.config.show_unit === false || !unit ? svg`` : svg`<tspan
-                        class="unit"
-                        dx="4"
-                        style="font-size: ${unitFontSize}px${this.config.unit_color ? `; fill: ${this.config.unit_color}` : ""}"
-                      >${unit}</tspan>`}
-                  ${!trend ? svg`` : svg`<tspan
-                        class="trend"
-                        dx="6"
-                        style="font-size: ${trendFontSize}px${this._trendColor(trend.direction) ? `; fill: ${this._trendColor(trend.direction)}` : ""}"
-                      >${this._trendSymbol(trend.direction)}</tspan>`}
-                </text>
+                <text class="value" x=${left} y=${valueY}>${valueTspans}</text>
               `}
           </svg>
           ${this.config.show_icon === false ? "" : html2`
