@@ -565,6 +565,14 @@ hiding a slice never repaints the others.
 Set `color` per entity to override, or `colors:` at card level to replace the
 palette wholesale.
 
+Segments are drawn as **barrels** by default: each is shaded across the bar,
+brightest about a third of the way over and falling off towards both edges, so
+it reads as a rounded, semi-transparent surface with the card showing through.
+Only the opacity varies across that shading — every stop is the segment's own
+palette colour, so hues are never altered and the validated separation between
+them still holds. `segment_opacity` makes the whole thing more or less
+see-through, and `segment_style: flat` restores plain solid fills.
+
 ### Configuration
 
 | Option | Required | Description |
@@ -580,6 +588,8 @@ palette wholesale.
 | `bar_radius` | no | Corner radius in px (default `4`) |
 | `bar_gap` | no | Gap between segments in px (default `2`) |
 | `bar_bg_color` | no | Bar background, seen when values are zero |
+| `segment_style` | no | `barrel` (shaded, semi-transparent — default) or `flat` |
+| `segment_opacity` | no | Scales the segment shading, 0.1–1 (default `1`) |
 | `show_values` | no | Label each segment in place (default `false`) |
 | `show_percent` | no | Shorthand for `segment_label: percent` |
 | `segment_label` | no | What the segment labels show: `value` (default), `percent`, or `both` |

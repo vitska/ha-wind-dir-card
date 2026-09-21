@@ -28,6 +28,17 @@ const PALETTE_DARK = [
   "#d55181", "#008300", "#9085e9", "#e66767",
 ];
 
+// Shading down the barrel: brightest a third of the way across, falling off to
+// near-transparent at both edges, which is what reads as a rounded surface.
+// Every stop is the segment's own palette colour - only the opacity varies, so
+// the card behind shows through and the hue is never altered.
+const BARREL_STOPS = [
+  { offset: "0%", opacity: 0.3 },
+  { offset: "30%", opacity: 0.88 },
+  { offset: "62%", opacity: 0.66 },
+  { offset: "100%", opacity: 0.26 },
+];
+
 const EDITOR_SCHEMA = [
   { name: "title", selector: { text: {} } },
   { name: "unit", selector: { text: {} } },
@@ -60,6 +71,22 @@ const EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 12, step: 0.5, mode: "box" } },
   },
   { name: "bar_bg_color", selector: { text: {} } },
+  {
+    name: "segment_style",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "barrel", label: "Barrel (shaded, semi-transparent)" },
+          { value: "flat", label: "Flat" },
+        ],
+      },
+    },
+  },
+  {
+    name: "segment_opacity",
+    selector: { "number": { "min": 0.1, "max": 1, "step": 0.05, "mode": "box" } },
+  },
   { name: "show_values", selector: { boolean: {} } },
   { name: "show_percent", selector: { boolean: {} } },
   {
@@ -180,6 +207,8 @@ const EDITOR_LABELS = {
   bar_radius: "Bar corner radius (px)",
   bar_gap: "Gap between segments (px)",
   bar_bg_color: "Bar background color",
+  segment_style: "Segment shading",
+  segment_opacity: "Segment opacity (scales the shading)",
   show_values: "Show labels on the segments",
   show_percent: "Segment labels show % instead of the value",
   segment_label: "What the segment labels show",
@@ -218,6 +247,7 @@ const EDITOR_LABELS = {
 defineEditor("distribution-ex-card-editor", EDITOR_SCHEMA, EDITOR_LABELS);
 
 class DistributionExCard extends LitElement {
+
   static get properties() {
     return {
       hass: { attribute: false },
@@ -234,6 +264,7 @@ class DistributionExCard extends LitElement {
     this._width = DEFAULT_WIDTH;
     this._barHeight = DEFAULT_BAR_LENGTH;
     this._clipId = uniqueId("dex-clip");
+    this._segmentId = uniqueId("dex-seg");
   }
 
   static getStubConfig(hass) {
@@ -268,6 +299,8 @@ class DistributionExCard extends LitElement {
       bar_height: 28,
       bar_radius: 4,
       bar_gap: 2,
+      segment_style: "barrel",
+      segment_opacity: 1,
       show_values: false,
       show_percent: false,
       value_font_size: 11,
@@ -410,6 +443,39 @@ class DistributionExCard extends LitElement {
         : svg``}`;
   }
 
+  _segmentFill(index) {
+    return this.config.segment_style === "flat"
+      ? null
+      : `${this._segmentId}-${index}`;
+  }
+
+  // One gradient per segment, since each carries its own colour. Both bars use
+  // objectBoundingBox units and every segment spans the bar's full thickness,
+  // so a single set of offsets shades them all identically across that axis.
+  _barrelDefs(visible, vertical) {
+    if (this.config.segment_style === "flat") return svg``;
+    const scale = Number.isFinite(Number(this.config.segment_opacity))
+      ? Math.max(0, Math.min(1, Number(this.config.segment_opacity)))
+      : 1;
+    return svg`${visible.map(
+      (item, index) => svg`
+        <linearGradient
+          id=${`${this._segmentId}-${index}`}
+          x1="0" y1="0"
+          x2=${vertical ? "1" : "0"} y2=${vertical ? "0" : "1"}
+        >
+          ${BARREL_STOPS.map(
+            (stop) => svg`<stop
+              offset=${stop.offset}
+              stop-color=${item.color}
+              stop-opacity=${stop.opacity * scale}
+            />`
+          )}
+        </linearGradient>
+      `
+    )}`;
+  }
+
   _formatValue(item) {
     if (!item.available) return "--";
     const shown = item.displayAbs ? Math.abs(item.value) : item.value;
@@ -529,6 +595,9 @@ class DistributionExCard extends LitElement {
     const length = Math.max(10, height - totalRow);
     const totalY = length + totalRow / 2;
 
+    const flatOpacity = Number.isFinite(Number(config.segment_opacity))
+      ? Number(config.segment_opacity)
+      : 1;
     const hasAside = mode !== "percent";
     const hasInside = mode !== "value";
     const showName = config.show_segment_names !== false;
@@ -560,17 +629,19 @@ class DistributionExCard extends LitElement {
           <clipPath id=${this._clipId}>
             <rect x="0" y="0" width=${thickness} height=${length} rx=${radius} ry=${radius} />
           </clipPath>
+          ${this._barrelDefs(visible, true)}
         </defs>
         <g clip-path="url(#${this._clipId})">
           <rect
             x="0" y="0" width=${thickness} height=${length}
             fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
           />
-          ${segments.map(({ item, start, drawn }) => svg`
+          ${segments.map(({ item, start, drawn }, index) => svg`
             <rect
               class="segment"
               x="0" y=${start} width=${thickness} height=${drawn}
-              fill=${item.color}
+              fill=${this._segmentFill(index) ? `url(#${this._segmentFill(index)})` : item.color}
+              fill-opacity=${this._segmentFill(index) ? 1 : flatOpacity}
               @click=${() => this._moreInfo(item.entity)}
             ><title>${item.name}: ${this._formatValue(item)}</title></rect>
           `)}
@@ -673,6 +744,9 @@ class DistributionExCard extends LitElement {
     const config = this.config;
     const width = length;
     const height = thickness;
+    const flatOpacity = Number.isFinite(Number(config.segment_opacity))
+      ? Number(config.segment_opacity)
+      : 1;
 
     let offset = 0;
     const segments = visible.map((item) => {
@@ -700,17 +774,19 @@ class DistributionExCard extends LitElement {
           <clipPath id=${this._clipId}>
             <rect x="0" y="0" width=${width} height=${height} rx=${radius} ry=${radius} />
           </clipPath>
+          ${this._barrelDefs(visible, false)}
         </defs>
         <g clip-path="url(#${this._clipId})">
           <rect
             x="0" y="0" width=${width} height=${height}
             fill=${config.bar_bg_color || "var(--divider-color, rgba(127,127,127,0.25))"}
           />
-          ${segments.map(({ item, start, drawn }) => svg`
+          ${segments.map(({ item, start, drawn }, index) => svg`
             <rect
               class="segment"
               x=${start} y="0" width=${drawn} height=${height}
-              fill=${item.color}
+              fill=${this._segmentFill(index) ? `url(#${this._segmentFill(index)})` : item.color}
+              fill-opacity=${this._segmentFill(index) ? 1 : flatOpacity}
               @click=${() => this._moreInfo(item.entity)}
             ><title>${item.name}: ${this._formatValue(item)}</title></rect>
           `)}
