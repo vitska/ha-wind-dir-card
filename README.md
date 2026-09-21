@@ -284,6 +284,7 @@ value_format:
     color: white
     background: "#8b1a1a"
     value_font_size: 52
+    graph_color: "#ff4136"
 ```
 
 | Key | Effect |
@@ -293,6 +294,7 @@ value_format:
 | `color` | Colour of the value |
 | `background` | Background of the whole card |
 | `value_font_size` | Font size of the value, in px |
+| `graph_color` | Colour of the graph wherever it is in this range |
 
 Ranges are half-open (`value_from <= value < value_to`), so neighbouring rules
 like `0`–`10` and `10`–`20` can be written back to back without both claiming
@@ -306,6 +308,34 @@ specific instruction. When no rule matches — including when the entity is
 unavailable — the card falls back to the threshold colours and then to
 `value_color`. `decimal_font_size_percent` is applied to whichever size ends up
 in force, so the decimals stay in proportion.
+
+**Banding the graph.** `graph_color` colours the graph itself by value, so the
+line changes colour exactly where it crosses a boundary rather than being one
+flat colour:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.cpu_temperature
+value_format:
+  - value_to: 50
+    graph_color: "#4caf50"
+  - value_from: 50
+    value_to: 70
+    graph_color: "#ffa600"
+  - value_from: 70
+    graph_color: "#ff4136"
+```
+
+Set it on as few or as many rules as you like — a stretch of the plot with no
+`graph_color` keeps `line_color`. Since the graph's vertical axis already maps
+value to position, the colours are applied as a gradient down the plot with
+hard stops at each boundary, so a crossing is cut exactly at its threshold and
+the shape of the line is untouched.
+
+On an area graph the fill is banded to match, at `fill_opacity`. That replaces
+the usual fade to transparent: the vertical axis can only carry one meaning at
+a time, and here it is carrying the bands. Graphs with no `graph_color` anywhere
+keep the fade.
 
 `value_format` is YAML-only: the visual editor can't edit a list of objects, but
 it leaves the key untouched when you change other options there.

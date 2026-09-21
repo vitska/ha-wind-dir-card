@@ -318,6 +318,8 @@ var SensorExCard = class extends LitElement2 {
     this._width = DEFAULT_WIDTH;
     this._height = DEFAULT_HEIGHT;
     this._gradientId = uniqueId("sxc-graph-fill");
+    this._lineBandId = uniqueId("sxc-graph-line-bands");
+    this._areaBandId = uniqueId("sxc-graph-area-bands");
   }
   static getStubConfig(hass) {
     const states = hass && hass.states || {};
@@ -499,6 +501,34 @@ var SensorExCard = class extends LitElement2 {
     }
     return null;
   }
+  // Colour stops for banding the graph by value. Because the y axis already
+  // maps value to position, a vertical gradient with hard stops at each band
+  // edge colours the line exactly where it crosses a threshold - no need to
+  // cut the path into pieces. Returns null when no rule defines a graph_color.
+  _graphBands(min, max, fallback) {
+    const rules = Array.isArray(this.config.value_format) ? this.config.value_format : [];
+    if (!rules.some((rule) => rule && rule.graph_color)) return null;
+    if (!(max > min)) return null;
+    const edges = /* @__PURE__ */ new Set([min, max]);
+    rules.forEach((rule) => {
+      if (!rule) return;
+      [rule.value_from, rule.value_to].forEach((bound) => {
+        const n = Number(bound);
+        if (Number.isFinite(n) && n > min && n < max) edges.add(n);
+      });
+    });
+    const sorted = [...edges].sort((a, b) => b - a);
+    const stops = [];
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+      const hi = sorted[i];
+      const lo = sorted[i + 1];
+      const rule = this._matchFormat((hi + lo) / 2);
+      const color = rule && rule.graph_color || fallback;
+      stops.push({ offset: (max - hi) / (max - min), color });
+      stops.push({ offset: (max - lo) / (max - min), color });
+    }
+    return stops;
+  }
   // Splits "19.9" into "19" and ".9" so the fraction can be set smaller. The
   // separator travels with the fraction, and a value without one (or the "--"
   // placeholder) comes back whole.
@@ -543,26 +573,59 @@ var SensorExCard = class extends LitElement2 {
     const lineColor = this.config.line_color || "";
     const fillColor = this.config.fill_color || this.config.line_color || "";
     const fillOpacity = Number.isFinite(Number(this.config.fill_opacity)) ? Number(this.config.fill_opacity) : 0.3;
+    const bands = this._graphBands(
+      min,
+      max,
+      lineColor || "var(--accent-color, #58a6ff)"
+    );
+    const bandDefs = bands ? svg`
+          <linearGradient
+            id=${this._lineBandId}
+            gradientUnits="userSpaceOnUse"
+            x1="0" y1=${top} x2="0" y2=${bottom}
+          >
+            ${bands.map(
+      (stop) => svg`<stop offset=${stop.offset} stop-color=${stop.color} />`
+    )}
+          </linearGradient>
+          <linearGradient
+            id=${this._areaBandId}
+            gradientUnits="userSpaceOnUse"
+            x1="0" y1=${top} x2="0" y2=${bottom}
+          >
+            ${bands.map(
+      (stop) => svg`<stop
+                offset=${stop.offset}
+                stop-color=${stop.color}
+                stop-opacity=${fillOpacity}
+              />`
+    )}
+          </linearGradient>
+        ` : svg``;
     const area = this.config.graph_type === "line" ? svg`` : svg`
-            <defs>
-              <linearGradient id=${this._gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color=${fillColor || "currentColor"} stop-opacity=${fillOpacity} />
-                <stop offset="100%" stop-color=${fillColor || "currentColor"} stop-opacity="0" />
-              </linearGradient>
-            </defs>
             <path
               class="area"
               d="${line} L ${coords[coords.length - 1].x.toFixed(2)} ${rect.bottom} L ${coords[0].x.toFixed(2)} ${rect.bottom} Z"
-              fill="url(#${this._gradientId})"
+              fill=${bands ? `url(#${this._areaBandId})` : `url(#${this._gradientId})`}
               style=${fillColor ? `color: ${fillColor}` : ""}
             />
           `;
     return svg`
+      <defs>
+        ${bandDefs}
+        ${this.config.graph_type === "line" ? svg`` : svg`
+            <linearGradient id=${this._gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color=${fillColor || "currentColor"} stop-opacity=${fillOpacity} />
+              <stop offset="100%" stop-color=${fillColor || "currentColor"} stop-opacity="0" />
+            </linearGradient>
+          `}
+      </defs>
       ${area}
       <path
         class="line"
         d=${line}
-        style="stroke-width: ${lineWidth}${lineColor ? `; stroke: ${lineColor}` : ""}"
+        style="stroke-width: ${lineWidth}${bands ? "" : lineColor ? `; stroke: ${lineColor}` : ""}"
+        stroke=${bands ? `url(#${this._lineBandId})` : ""}
       />
     `;
   }
