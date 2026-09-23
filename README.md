@@ -188,10 +188,11 @@ the graph runs edge to edge.
 
 ![Sensor Ex Cards in a dashboard](screenshot-dashboard.png)
 
-The six sensor cards above show most of what the card can do: the compact row
-along the top uses smaller decimals, trend arrows and `value_format` — note the
-pressure card, whose graph is banded by `graph_color` — while the row along the
-bottom keeps labels and icons with a plain graph.
+The sensor cards above show most of what the card can do. The compact ones use
+smaller decimals, trend arrows, labels pinned to the top right, and
+`value_format` rules colouring the value, the label and the graph together per
+range. The two at the bottom right keep the plainer look: a left label with an
+icon and an unbanded graph.
 
 ### Configuration
 
