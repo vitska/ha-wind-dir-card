@@ -535,6 +535,9 @@ cards:
 
 ### Notes
 
+- Tapping the card opens the entity's more-info dialog, the same as Home
+  Assistant's built-in sensor card. It is reachable by keyboard too — tab to
+  it and press Enter or Space.
 - The graph comes from the recorder, so an entity excluded from recorder has
   nothing to plot. The value and label still render.
 - History is fetched over the WebSocket API and refreshed on

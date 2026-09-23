@@ -556,6 +556,20 @@ var SensorExCard = class extends LitElement2 {
   // Splits "19.9" into "19" and ".9" so the fraction can be set smaller. The
   // separator travels with the fraction, and a value without one (or the "--"
   // placeholder) comes back whole.
+  // Matches the built-in sensor card: tapping anywhere on it opens the
+  // entity's more-info dialog.
+  _moreInfo() {
+    if (!this.config || !this.config.entity) return;
+    fireEvent(this, "hass-more-info", { entityId: this.config.entity });
+  }
+  // The card is a div, so it needs the keyboard activation a real button
+  // would have come with.
+  _onKeydown(ev) {
+    if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar") {
+      ev.preventDefault();
+      this._moreInfo();
+    }
+  }
   _valueParts(text) {
     const at = text.indexOf(".");
     return at === -1 ? { whole: text, fraction: "" } : { whole: text.slice(0, at), fraction: text.slice(at) };
@@ -707,7 +721,14 @@ var SensorExCard = class extends LitElement2 {
     const valueTop = showLabel ? textTop + labelFontSize * 1.05 : textTop;
     const valueY = valueTop + valueFontSize * CAP_RATIO;
     return html2`
-      <ha-card style=${format.background ? `background: ${format.background}` : ""}>
+      <ha-card
+        style=${format.background ? `background: ${format.background}` : ""}
+        role="button"
+        tabindex="0"
+        aria-label=${`${label}: ${valueParts.whole}${valueParts.fraction}${unit ? ` ${unit}` : ""}`}
+        @click=${this._moreInfo}
+        @keydown=${this._onKeydown}
+      >
         <div
           class="root"
           style="${fixedHeight ? "" : `min-height: ${DEFAULT_HEIGHT}px;`} --sxc-value-weight: ${this.config.value_font_weight || "normal"}; --sxc-blink-period: ${blinkInterval * 2}ms"
@@ -755,6 +776,11 @@ var SensorExCard = class extends LitElement2 {
         box-sizing: border-box;
         padding: 0;
         overflow: hidden;
+        cursor: pointer;
+      }
+      ha-card:focus-visible {
+        outline: 2px solid var(--primary-color, #03a9f4);
+        outline-offset: 2px;
       }
       .root {
         position: relative;
