@@ -205,7 +205,10 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `icon`               | no       | Icon override (default: the entity's own icon)                               |
 | `unit`               | no       | Unit override (default: the entity's `unit_of_measurement`)                  |
 | `value_precision`    | no       | Decimal places for the value (default `1`)                                   |
-| `show_label`         | no       | Show the label; when hidden, the value moves up into its place (default `true`) |
+| `show_label`         | no       | Show the label (default `true`). Hiding it does not move the value |
+| `label_position`     | no       | `top` (default, above the value) or `bottom` (below it)                      |
+| `label_align`        | no       | `left` (default), `center` or `right`                                        |
+| `value_align`        | no       | `left` (default), `center` or `right`                                        |
 | `show_value`         | no       | Show the value (default `true`)                                              |
 | `show_unit`          | no       | Show the unit next to the value (default `true`)                             |
 | `show_icon`          | no       | Show the icon (default `true`)                                               |
@@ -264,6 +267,23 @@ decimal_font_size_percent: 55
 The separator travels with the fraction, and both sit on the same baseline. At
 the default `100` nothing changes, and a value with no decimals (or an
 unavailable one showing `--`) is left alone.
+
+**Layout.** The label's line is reserved whether or not the label is shown, so
+turning it off leaves the value exactly where it was instead of sliding it up
+the card — useful when several cards sit side by side and only some have
+labels. `label_position: bottom` puts the label under the value, which then
+takes the top slot itself.
+
+`label_align` and `value_align` place each independently at `left`, `center` or
+`right` of the padded box:
+
+```yaml
+type: custom:sensor-ex-card
+entity: sensor.outside_temperature
+label_position: bottom
+label_align: center
+value_align: center
+```
 
 **Matching the built-in sensor card.** The text inherits your theme's font, and
 the value renders at **normal weight** — Home Assistant's own sensor card sets

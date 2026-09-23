@@ -119,6 +119,44 @@ var EDITOR_SCHEMA = [
     selector: { number: { min: 0, max: 3, step: 1, mode: "box" } }
   },
   { name: "show_label", selector: { boolean: {} } },
+  {
+    name: "label_position",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "top", label: "Above the value" },
+          { value: "bottom", label: "Below the value" }
+        ]
+      }
+    }
+  },
+  {
+    name: "label_align",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "left", label: "Left" },
+          { value: "center", label: "Centre" },
+          { value: "right", label: "Right" }
+        ]
+      }
+    }
+  },
+  {
+    name: "value_align",
+    selector: {
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "left", label: "Left" },
+          { value: "center", label: "Centre" },
+          { value: "right", label: "Right" }
+        ]
+      }
+    }
+  },
   { name: "show_value", selector: { boolean: {} } },
   { name: "show_unit", selector: { boolean: {} } },
   { name: "show_icon", selector: { boolean: {} } },
@@ -244,6 +282,9 @@ var EDITOR_LABELS = {
   unit: "Unit override (optional)",
   value_precision: "Value decimal places",
   show_label: "Show label",
+  label_position: "Label placement",
+  label_align: "Label alignment",
+  value_align: "Value alignment",
   show_value: "Show value",
   show_unit: "Show unit",
   show_icon: "Show icon",
@@ -341,6 +382,9 @@ var SensorExCard = class extends LitElement2 {
     this.config = {
       value_precision: 1,
       show_label: true,
+      label_position: "top",
+      label_align: "left",
+      value_align: "left",
       show_value: true,
       show_unit: true,
       show_icon: true,
@@ -717,9 +761,15 @@ var SensorExCard = class extends LitElement2 {
     const showLabel = this.config.show_label !== false;
     const margin = Number.isFinite(Number(this.config.value_margin)) ? Number(this.config.value_margin) : 0;
     const textTop = top + margin;
-    const labelY = textTop + labelFontSize * CAP_RATIO;
-    const valueTop = showLabel ? textTop + labelFontSize * 1.05 : textTop;
+    const labelAtTop = this.config.label_position !== "bottom";
+    const labelLine = labelFontSize * 1.05;
+    const valueTop = textTop + (labelAtTop ? labelLine : 0);
     const valueY = valueTop + valueFontSize * CAP_RATIO;
+    const labelY = labelAtTop ? textTop + labelFontSize * CAP_RATIO : valueTop + valueFontSize * 1.05 + labelFontSize * CAP_RATIO;
+    const anchorFor = (align) => align === "center" ? "middle" : align === "right" ? "end" : "start";
+    const xFor = (align) => align === "center" ? (left + right) / 2 : align === "right" ? right : left;
+    const labelAlign = this.config.label_align || "left";
+    const valueAlign = this.config.value_align || "left";
     return html2`
       <ha-card
         style=${format.background ? `background: ${format.background}` : ""}
@@ -738,16 +788,18 @@ var SensorExCard = class extends LitElement2 {
             ${!showLabel ? svg`` : svg`
                 <text
                   class="label"
-                  x=${left}
+                  x=${xFor(labelAlign)}
                   y=${labelY}
+                  text-anchor=${anchorFor(labelAlign)}
                   style="font-size: ${labelFontSize}px${this.config.label_color ? `; fill: ${this.config.label_color}` : ""}"
                 >${label}</text>
               `}
             ${this.config.show_value === false ? svg`` : svg`
                 <text
                   class="value${blinking ? " blink" : ""}"
-                  x=${left}
+                  x=${xFor(valueAlign)}
                   y=${valueY}
+                  text-anchor=${anchorFor(valueAlign)}
                 >${valueTspans}</text>
               `}
           </svg>
