@@ -244,7 +244,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `warning_threshold`  | no       | Value at/above which the readout turns `color_warning`                       |
 | `danger_threshold`   | no       | Value at/above which the readout turns `color_danger`                        |
 | `hours_to_show`      | no       | Hours of history to graph (default `24`)                                     |
-| `graph_type`         | no       | `area` (line + gradient fill, default) or `line`                             |
+| `graph_type`         | no       | `line` (default) or `area` (line + gradient fill)                            |
 | `line_color`         | no       | CSS color for the graph line (default: theme accent color)                   |
 | `line_width`         | no       | Graph line width in px (default `2`)                                         |
 | `fill_color`         | no       | CSS color for the area fill (default: the line color)                        |

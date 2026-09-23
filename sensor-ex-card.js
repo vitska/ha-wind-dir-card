@@ -410,7 +410,7 @@ var SensorExCard = class extends LitElement2 {
       blink_interval: 250,
       icon_size: 24,
       hours_to_show: 24,
-      graph_type: "area",
+      graph_type: "line",
       line_width: 2,
       fill_opacity: 0.3,
       graph_height: 0.45,

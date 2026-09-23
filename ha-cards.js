@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "4.0.0";
+var VERSION = "4.1.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1028,7 +1028,7 @@ var SensorExCard = class extends LitElement2 {
       blink_interval: 250,
       icon_size: 24,
       hours_to_show: 24,
-      graph_type: "area",
+      graph_type: "line",
       line_width: 2,
       fill_opacity: 0.3,
       graph_height: 0.45,
