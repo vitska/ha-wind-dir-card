@@ -762,7 +762,12 @@ class SensorExCard extends LitElement {
     const labelColor = format.label_color || this.config.label_color || "";
     const valueFontSize =
       Number(format.value_font_size) || Number(this.config.value_font_size) || 40;
-    const unitFontSize = Number(this.config.unit_font_size) || 14;
+    const unitFontSize =
+      Number(format.unit_font_size) ||
+      Number(format.unit_size) ||
+      Number(this.config.unit_font_size) ||
+      14;
+    const unitColor = format.unit_color || this.config.unit_color || "";
     const trendFontSize = Number(this.config.trend_font_size) || unitFontSize;
     const trend = this.config.show_trend === false ? null : this._trend();
     const decimalPercent = Number(this.config.decimal_font_size_percent);
@@ -792,7 +797,7 @@ class SensorExCard extends LitElement {
       this.config.show_unit === false || !unit
         ? svg``
         : svg`<tspan class="unit" dx="4" style="font-size: ${unitFontSize}px${
-            this.config.unit_color ? `; fill: ${this.config.unit_color}` : ""
+            unitColor ? `; fill: ${unitColor}` : ""
           }">${unit}</tspan>`
     }${
       !trend

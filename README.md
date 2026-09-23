@@ -328,6 +328,8 @@ value_format:
     value_font_size: 52
     label_color: "#ffb4b4"
     label_size: 22
+    unit_color: "#ffb4b4"
+    unit_font_size: 16
     graph_color: "#ff4136"
     blink: true
 ```
@@ -341,6 +343,8 @@ value_format:
 | `value_font_size` | Font size of the value, in px |
 | `label_color` | Colour of the label |
 | `label_size` | Font size of the label, in px |
+| `unit_color` | Colour of the unit |
+| `unit_font_size` | Font size of the unit, in px |
 | `graph_color` | Colour of the graph wherever it is in this range |
 | `blink` | Blink the readout while the value is in this range |
 
@@ -351,10 +355,12 @@ to least specific. A rule may set any subset of the three style keys; anything
 it leaves out keeps the card's own setting, so a rule with only a `color`
 changes nothing else.
 
-`label_color` and `label_size` restyle the label the same way `color` and
-`value_font_size` restyle the value, overriding the card's own `label_color`
-and `label_font_size` while the rule matches. Changing the label's size from a
-rule never moves the value, which is anchored independently.
+`label_color` / `label_size` and `unit_color` / `unit_font_size` restyle the
+label and the unit the same way `color` and `value_font_size` restyle the
+value, overriding the card's own settings while the rule matches. Neither can
+move the value: the label is anchored independently, and the unit rides the
+value's baseline. `unit_size` is accepted as a synonym for `unit_font_size`,
+matching `label_size`.
 
 A matching rule outranks `color_warning` / `color_danger`, being the more
 specific instruction. When no rule matches — including when the entity is
