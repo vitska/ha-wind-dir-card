@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.17.0";
+var VERSION = "3.17.1";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -816,6 +816,10 @@ var EDITOR_SCHEMA2 = [
     selector: { "number": { "min": 200, "max": 2e3, "step": 50, "mode": "box" } }
   },
   {
+    name: "label_margin",
+    selector: { "number": { "min": -40, "max": 200, "step": 1, "mode": "box" } }
+  },
+  {
     name: "value_margin",
     selector: { "number": { "min": -40, "max": 60, "step": 1, "mode": "box" } }
   },
@@ -925,7 +929,8 @@ var EDITOR_LABELS2 = {
   value_font_size: "Value font size (px)",
   value_font_weight: "Value font weight (default normal, as the built-in card)",
   blink_interval: "Blink interval for value_format rules with blink (ms)",
-  value_margin: "Extra space above the text block (px)",
+  label_margin: "Offset of the label from its edge (px)",
+  value_margin: "Offset of the value from the top (px)",
   decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
   icon_size: "Icon size (px)",
@@ -1018,6 +1023,7 @@ var SensorExCard = class extends LitElement2 {
       unit_font_size: 14,
       decimal_font_size_percent: 100,
       value_margin: 0,
+      label_margin: 0,
       blink_interval: 250,
       icon_size: 24,
       hours_to_show: 24,
@@ -1365,25 +1371,20 @@ var SensorExCard = class extends LitElement2 {
     const right = width - padding;
     const top = padding;
     const bottom = height - padding;
+    const showGraph = this.config.show_graph !== false;
     const graphFraction = Math.min(
       1,
       Math.max(0.1, Number(this.config.graph_height) || 0.45)
     );
-    const showGraph = this.config.show_graph !== false;
-    const graphRect = {
-      left,
-      right,
-      top: bottom - (bottom - top) * graphFraction,
-      bottom
-    };
+    const graphTop = bottom - (bottom - top) * graphFraction;
+    const graphRect = { left, right, top: graphTop, bottom };
     const showLabel = this.config.show_label !== false;
     const margin = Number.isFinite(Number(this.config.value_margin)) ? Number(this.config.value_margin) : 0;
-    const textTop = top + margin;
+    const labelMargin = Number.isFinite(Number(this.config.label_margin)) ? Number(this.config.label_margin) : 0;
     const labelAtTop = this.config.label_position !== "bottom";
-    const labelLine = labelFontSize * 1.05;
-    const valueTop = textTop + (labelAtTop ? labelLine : 0);
-    const valueY = valueTop + valueFontSize * CAP_RATIO;
-    const labelY = labelAtTop ? textTop + labelFontSize * CAP_RATIO : valueTop + valueFontSize * 1.05 + labelFontSize * CAP_RATIO;
+    const valueY = top + margin + valueFontSize * CAP_RATIO;
+    const labelFoot = showGraph ? graphTop : bottom;
+    const labelY = labelAtTop ? top + labelMargin + labelFontSize * CAP_RATIO : labelFoot - labelMargin - labelFontSize * 0.28;
     const anchorFor = (align) => align === "center" ? "middle" : align === "right" ? "end" : "start";
     const xFor = (align) => align === "center" ? (left + right) / 2 : align === "right" ? right : left;
     const labelAlign = this.config.label_align || "left";

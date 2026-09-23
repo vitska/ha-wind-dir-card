@@ -112,6 +112,10 @@ const EDITOR_SCHEMA = [
     selector: { "number": { "min": 200, "max": 2000, "step": 50, "mode": "box" } },
   },
   {
+    name: "label_margin",
+    selector: { "number": { "min": -40, "max": 200, "step": 1, "mode": "box" } },
+  },
+  {
     name: "value_margin",
     selector: { "number": { "min": -40, "max": 60, "step": 1, "mode": "box" } },
   },
@@ -222,7 +226,8 @@ const EDITOR_LABELS = {
   value_font_size: "Value font size (px)",
   value_font_weight: "Value font weight (default normal, as the built-in card)",
   blink_interval: "Blink interval for value_format rules with blink (ms)",
-  value_margin: "Extra space above the text block (px)",
+  label_margin: "Offset of the label from its edge (px)",
+  value_margin: "Offset of the value from the top (px)",
   decimal_font_size_percent: "Decimal size, as a % of the value font size",
   unit_font_size: "Unit font size (px)",
   icon_size: "Icon size (px)",
@@ -328,6 +333,7 @@ class SensorExCard extends LitElement {
       unit_font_size: 14,
       decimal_font_size_percent: 100,
       value_margin: 0,
+      label_margin: 0,
       blink_interval: 250,
       icon_size: 24,
       hours_to_show: 24,
@@ -799,38 +805,41 @@ class SensorExCard extends LitElement {
     const top = padding;
     const bottom = height - padding;
 
+    const showGraph = this.config.show_graph !== false;
     const graphFraction = Math.min(
       1,
       Math.max(0.1, Number(this.config.graph_height) || 0.45)
     );
-    const showGraph = this.config.show_graph !== false;
-    const graphRect = {
-      left,
-      right,
-      top: bottom - (bottom - top) * graphFraction,
-      bottom,
-    };
+    const graphTop = bottom - (bottom - top) * graphFraction;
+    const graphRect = { left, right, top: graphTop, bottom };
 
     // <text y> is the alphabetic baseline, so the glyph tops land CAP_RATIO em
     // above it. Keeping the alphabetic baseline (rather than a top-edge one) is
     // what lets the unit and trend sit on the value's baseline instead of
-    // floating at its top. With the label hidden the value takes over its slot.
+    // floating at its top.
+
     const showLabel = this.config.show_label !== false;
     const margin = Number.isFinite(Number(this.config.value_margin))
       ? Number(this.config.value_margin)
       : 0;
-    const textTop = top + margin;
+    const labelMargin = Number.isFinite(Number(this.config.label_margin))
+      ? Number(this.config.label_margin)
+      : 0;
     const labelAtTop = this.config.label_position !== "bottom";
-    const labelLine = labelFontSize * 1.05;
 
-    // The label's line is reserved whether or not it is shown, so turning the
-    // label off leaves the value exactly where it was rather than sliding it
-    // up the card.
-    const valueTop = textTop + (labelAtTop ? labelLine : 0);
-    const valueY = valueTop + valueFontSize * CAP_RATIO;
+    // The value is anchored to the top of the padded box and nothing else -
+    // not the label's presence, not where the label is placed. Showing,
+    // hiding or moving the label therefore never shifts it; value_margin is
+    // the only thing that does, which is also how you make room for a label
+    // above it.
+    const valueY = top + margin + valueFontSize * CAP_RATIO;
+
+    // The label is pinned to an edge of its own: the top of the padded box, or
+    // the foot of the text area just above the graph.
+    const labelFoot = showGraph ? graphTop : bottom;
     const labelY = labelAtTop
-      ? textTop + labelFontSize * CAP_RATIO
-      : valueTop + valueFontSize * 1.05 + labelFontSize * CAP_RATIO;
+      ? top + labelMargin + labelFontSize * CAP_RATIO
+      : labelFoot - labelMargin - labelFontSize * 0.28;
 
     // left / centre / right, as an x plus the anchor that goes with it.
     const anchorFor = (align) =>

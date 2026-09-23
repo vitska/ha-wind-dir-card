@@ -230,7 +230,8 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `label_font_size`    | no       | Label font size in px (default `18`)                                         |
 | `value_font_size`    | no       | Value font size in px (default `40`)                                         |
 | `value_font_weight`  | no       | Value font weight (default `normal`, matching the built-in sensor card)      |
-| `value_margin`       | no       | Extra space above the label/value block in px (default `0`; negatives pull it up) |
+| `value_margin`       | no       | Offset of the value from the top in px (default `0`; negatives pull it up)   |
+| `label_margin`       | no       | Offset of the label from its own edge in px (default `0`)                    |
 | `blink_interval`     | no       | How long the readout spends visible, then hidden, in ms (default `250`, floor `200`) |
 | `value_format`       | no       | List of value-range formatting rules (see below)                             |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
@@ -268,11 +269,21 @@ The separator travels with the fraction, and both sit on the same baseline. At
 the default `100` nothing changes, and a value with no decimals (or an
 unavailable one showing `--`) is left alone.
 
-**Layout.** The label's line is reserved whether or not the label is shown, so
-turning it off leaves the value exactly where it was instead of sliding it up
-the card — useful when several cards sit side by side and only some have
-labels. `label_position: bottom` puts the label under the value, which then
-takes the top slot itself.
+**Layout.** The value is anchored to the top of the padded box and nothing
+else. Showing the label, hiding it, moving it, resizing it — none of that
+shifts the value, so cards sit side by side with their readings on the same
+line whether or not they carry labels. `value_margin` is the only thing that
+moves it, and that is also how you make room for a label above it:
+
+```yaml
+label_position: top
+value_margin: 24    # clears the label
+```
+
+The label pins to an edge of its own: the top of the padded box, or, with
+`label_position: bottom`, just above the graph (or the card's foot when the
+graph is hidden). `label_margin` slides it away from that edge without
+touching anything else.
 
 `label_align` and `value_align` place each independently at `left`, `center` or
 `right` of the padded box:
