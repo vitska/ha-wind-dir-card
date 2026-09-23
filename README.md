@@ -166,6 +166,8 @@ cards:
 
 - If an entity is `unavailable`/`unknown`, the affected part of the dial is
   hidden and the card dims slightly instead of erroring.
+- The needle always turns the short way round, including across north — a swing
+  from 350° to 10° moves 20° forwards rather than 340° backwards.
 - Colors are pulled from your active HA theme (`--primary-text-color`,
   `--card-background-color`, etc.) with sensible dark-theme fallbacks, so the
   card looks reasonable in both light and dark themes without configuration.

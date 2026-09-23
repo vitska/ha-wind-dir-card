@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.15.0";
+var VERSION = "3.15.1";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -432,6 +432,22 @@ var WindDirCard = class extends LitElement2 {
       />
     `;
   }
+  // The needle's rotation is animated by interpolating the number in
+  // rotate(), so a step from 350 to 10 would sweep 340 degrees backwards
+  // rather than 20 forwards. Accumulating the angle instead of wrapping it
+  // keeps every move the short way round: each update shifts the running
+  // total by the signed difference, normalised to -180..180. The total drifts
+  // outside 0..360 over time, which rotate() handles fine.
+  _shortestAngle(degrees) {
+    if (degrees === null) return null;
+    if (this._arrowAngle === void 0) {
+      this._arrowAngle = degrees;
+      return this._arrowAngle;
+    }
+    const delta = ((degrees - this._arrowAngle) % 360 + 540) % 360 - 180;
+    this._arrowAngle += delta;
+    return this._arrowAngle;
+  }
   _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
     if (directionDeg === null) {
       return svg``;
@@ -550,7 +566,13 @@ var WindDirCard = class extends LitElement2 {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
+              ${this._renderArrow(
+      this._shortestAngle(direction),
+      arrowColor,
+      arrowSize,
+      arrowType,
+      arrowShadow
+    )}
               <circle
                 cx=${CENTER}
                 cy=${CENTER}

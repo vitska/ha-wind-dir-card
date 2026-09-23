@@ -376,6 +376,23 @@ class WindDirCard extends LitElement {
     `;
   }
 
+  // The needle's rotation is animated by interpolating the number in
+  // rotate(), so a step from 350 to 10 would sweep 340 degrees backwards
+  // rather than 20 forwards. Accumulating the angle instead of wrapping it
+  // keeps every move the short way round: each update shifts the running
+  // total by the signed difference, normalised to -180..180. The total drifts
+  // outside 0..360 over time, which rotate() handles fine.
+  _shortestAngle(degrees) {
+    if (degrees === null) return null;
+    if (this._arrowAngle === undefined) {
+      this._arrowAngle = degrees;
+      return this._arrowAngle;
+    }
+    const delta = (((degrees - this._arrowAngle) % 360) + 540) % 360 - 180;
+    this._arrowAngle += delta;
+    return this._arrowAngle;
+  }
+
   _renderArrow(directionDeg, arrowColor, arrowSize, arrowType, arrowShadow) {
     if (directionDeg === null) {
       return svg``;
@@ -517,7 +534,13 @@ class WindDirCard extends LitElement {
                 class="north-marker"
                 style=${scaleColor ? `fill: ${scaleColor}` : ""}
               />
-              ${this._renderArrow(direction, arrowColor, arrowSize, arrowType, arrowShadow)}
+              ${this._renderArrow(
+                this._shortestAngle(direction),
+                arrowColor,
+                arrowSize,
+                arrowType,
+                arrowShadow
+              )}
               <circle
                 cx=${CENTER}
                 cy=${CENTER}
