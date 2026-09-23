@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.18.0";
+var VERSION = "4.0.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1006,11 +1006,11 @@ var SensorExCard = class extends LitElement2 {
       value_precision: 1,
       show_label: true,
       label_position: "top",
-      label_align: "left",
+      label_align: "right",
       value_align: "left",
       show_value: true,
       show_unit: true,
-      show_icon: true,
+      show_icon: false,
       show_graph: true,
       show_trend: true,
       trend_hours: 1,
@@ -1018,11 +1018,12 @@ var SensorExCard = class extends LitElement2 {
       trend_up_symbol: "\u25B2",
       trend_down_symbol: "\u25BC",
       trend_flat_symbol: "\u2013",
-      label_font_size: 18,
-      value_font_size: 40,
+      label_font_size: 12,
+      value_font_size: 34,
       unit_font_size: 14,
-      decimal_font_size_percent: 100,
-      value_margin: 0,
+      trend_font_size: 20,
+      decimal_font_size_percent: 55,
+      value_margin: 5,
       label_margin: 0,
       blink_interval: 250,
       icon_size: 24,
@@ -1031,8 +1032,9 @@ var SensorExCard = class extends LitElement2 {
       line_width: 2,
       fill_opacity: 0.3,
       graph_height: 0.45,
-      refresh_interval: 300,
-      padding: 0,
+      card_height: 64,
+      refresh_interval: 10,
+      padding: 4,
       ...config
     };
   }

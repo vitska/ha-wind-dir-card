@@ -208,11 +208,11 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `value_precision`    | no       | Decimal places for the value (default `1`)                                   |
 | `show_label`         | no       | Show the label (default `true`). Hiding it does not move the value |
 | `label_position`     | no       | `top` (default, above the value) or `bottom` (below it)                      |
-| `label_align`        | no       | `left` (default), `center` or `right`                                        |
+| `label_align`        | no       | `left`, `center` or `right` (default `right`)                                        |
 | `value_align`        | no       | `left` (default), `center` or `right`                                        |
 | `show_value`         | no       | Show the value (default `true`)                                              |
 | `show_unit`          | no       | Show the unit next to the value (default `true`)                             |
-| `show_icon`          | no       | Show the icon (default `true`)                                               |
+| `show_icon`          | no       | Show the icon (default `false`)                                               |
 | `show_graph`         | no       | Show the history graph (default `true`)                                      |
 | `show_trend`         | no       | Show the trend arrow next to the value (default `true`)                      |
 | `trend_hours`        | no       | Window of history the trend is measured over, in hours (default `1`)         |
@@ -220,7 +220,7 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `trend_color_up`     | no       | Color of the rising arrow (default `#ff6b6b`)                                |
 | `trend_color_down`   | no       | Color of the falling arrow (default `#58a6ff`)                               |
 | `trend_color_flat`   | no       | Color of the flat marker (default: theme secondary text color)               |
-| `trend_font_size`    | no       | Trend arrow size in px (default: same as `unit_font_size`)                   |
+| `trend_font_size`    | no       | Trend arrow size in px (default `20`)                   |
 | `trend_up_symbol`    | no       | Symbol for a rising trend (default `▲`)                                      |
 | `trend_down_symbol`  | no       | Symbol for a falling trend (default `▼`)                                     |
 | `trend_flat_symbol`  | no       | Symbol for no significant change (default `–`)                               |
@@ -228,15 +228,15 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `value_color`        | no       | CSS color for the value (default: theme primary text color)                  |
 | `unit_color`         | no       | CSS color for the unit (default: theme secondary text color)                 |
 | `icon_color`         | no       | CSS color for the icon (default: theme icon color)                           |
-| `label_font_size`    | no       | Label font size in px (default `18`)                                         |
-| `value_font_size`    | no       | Value font size in px (default `40`)                                         |
+| `label_font_size`    | no       | Label font size in px (default `12`)                                         |
+| `value_font_size`    | no       | Value font size in px (default `34`)                                         |
 | `value_font_weight`  | no       | Value font weight (default `normal`, matching the built-in sensor card)      |
-| `value_margin`       | no       | Offset of the value from the top in px (default `0`; negatives pull it up)   |
+| `value_margin`       | no       | Offset of the value from the top in px (default `5`; negatives pull it up)   |
 | `label_margin`       | no       | Offset of the label from its own edge in px (default `0`)                    |
 | `blink_interval`     | no       | How long the readout spends visible, then hidden, in ms (default `250`, floor `200`) |
 | `value_format`       | no       | List of value-range formatting rules (see below)                             |
 | `unit_font_size`     | no       | Unit font size in px (default `14`)                                          |
-| `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `100`, i.e. the same size) |
+| `decimal_font_size_percent` | no | Size of the decimal fraction as a % of `value_font_size` (default `55`) |
 | `icon_size`          | no       | Icon size in px (default `24`)                                               |
 | `color_normal`       | no       | Value color below any threshold (default: falls back to `value_color`)       |
 | `color_warning`      | no       | Value color at/above `warning_threshold` (default `#ffa600`)                 |
@@ -251,9 +251,9 @@ Only `entity` is required. The card has a visual editor, same as the compass.
 | `fill_opacity`       | no       | Opacity at the top of the fill gradient, fading to 0 (default `0.3`)         |
 | `graph_height`       | no       | Graph height as a fraction of the card, 0–1 (default `0.45`)                 |
 | `y_min` / `y_max`    | no       | Fixed Y axis bounds (default: auto-scaled to the data)                       |
-| `card_height`        | no       | Fixed card height in px. Unset (default) fills the tile, which in a stack means matching the tallest sibling |
-| `padding`            | no       | Padding around the contents in px (default `0`, fills the tile edge-to-edge) |
-| `refresh_interval`   | no       | How often to refetch history, in seconds (default `300`)                     |
+| `card_height`        | no       | Fixed card height in px (default `64`). `0` fills the tile instead, which in a stack means matching the tallest sibling |
+| `padding`            | no       | Padding around the contents in px (default `4`) |
+| `refresh_interval`   | no       | How often to refetch history, in seconds (default `10`)                     |
 
 **Smaller decimals.** `decimal_font_size_percent` sets the fraction's size as a
 percentage of `value_font_size`, so the digits that matter stay dominant while
