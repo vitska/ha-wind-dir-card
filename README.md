@@ -325,6 +325,8 @@ value_format:
     color: white
     background: "#8b1a1a"
     value_font_size: 52
+    label_color: "#ffb4b4"
+    label_size: 22
     graph_color: "#ff4136"
     blink: true
 ```
@@ -336,6 +338,8 @@ value_format:
 | `color` | Colour of the value |
 | `background` | Background of the whole card |
 | `value_font_size` | Font size of the value, in px |
+| `label_color` | Colour of the label |
+| `label_size` | Font size of the label, in px |
 | `graph_color` | Colour of the graph wherever it is in this range |
 | `blink` | Blink the readout while the value is in this range |
 
@@ -345,6 +349,11 @@ like `0`–`10` and `10`–`20` can be written back to back without both claimin
 to least specific. A rule may set any subset of the three style keys; anything
 it leaves out keeps the card's own setting, so a rule with only a `color`
 changes nothing else.
+
+`label_color` and `label_size` restyle the label the same way `color` and
+`value_font_size` restyle the value, overriding the card's own `label_color`
+and `label_font_size` while the rule matches. Changing the label's size from a
+rule never moves the value, which is anchored independently.
 
 A matching rule outranks `color_warning` / `color_danger`, being the more
 specific instruction. When no rule matches — including when the entity is

@@ -11,7 +11,7 @@ import {
   css,
   svg
 } from "https://unpkg.com/lit-element@3.3.3/lit-element.js?module";
-var VERSION = "3.17.1";
+var VERSION = "3.18.0";
 function fireEvent(node, type, detail) {
   node.dispatchEvent(
     new CustomEvent(type, {
@@ -1351,7 +1351,8 @@ var SensorExCard = class extends LitElement2 {
     );
     const format = this._matchFormat(value) || {};
     const valueColor = format.color || levelColor(this.config, level) || this.config.value_color || "";
-    const labelFontSize = Number(this.config.label_font_size) || 18;
+    const labelFontSize = Number(format.label_size) || Number(format.label_font_size) || Number(this.config.label_font_size) || 18;
+    const labelColor = format.label_color || this.config.label_color || "";
     const valueFontSize = Number(format.value_font_size) || Number(this.config.value_font_size) || 40;
     const unitFontSize = Number(this.config.unit_font_size) || 14;
     const trendFontSize = Number(this.config.trend_font_size) || unitFontSize;
@@ -1410,7 +1411,7 @@ var SensorExCard = class extends LitElement2 {
                   x=${xFor(labelAlign)}
                   y=${labelY}
                   text-anchor=${anchorFor(labelAlign)}
-                  style="font-size: ${labelFontSize}px${this.config.label_color ? `; fill: ${this.config.label_color}` : ""}"
+                  style="font-size: ${labelFontSize}px${labelColor ? `; fill: ${labelColor}` : ""}"
                 >${label}</text>
               `}
             ${this.config.show_value === false ? svg`` : svg`
